@@ -1,11 +1,12 @@
 # Web Site Architecture
 
-The Wastime web site (*Wastime UI*) is an **Angular 21** application rendered with
-**server-side rendering / static prerendering**. It serves the marketing landing page,
-per-feature SEO landing pages, a markdown-driven blog, legal/support pages, and web access to
-the product's account area.
+The Wastime web site is an **Angular 21** application rendered with **server-side rendering /
+static prerendering**. It serves the marketing landing page, per-feature SEO landing pages, a
+markdown-driven blog, legal/support pages, and web access to the product's account area.
 
-For versions and package details, see [tech-stack.md](tech-stack.md#web-site).
+> This document describes the site at the level of **roles, patterns, and pipeline stages**
+> rather than concrete file, route, or script names. For versions and libraries, see
+> [tech-stack.md](tech-stack.md#web-site).
 
 ---
 
@@ -26,54 +27,41 @@ crawlable, and shareable.
 
 ## Application structure
 
-```text
-src/app/
-  pages/            Route-level screens
-    landing/            Main marketing landing
-    feature-landings/   One SEO landing per product feature
-    blog/               Blog index, post, tag/pagination views
-    life-calendar/ · calendars/   Interactive web versions
-    legal/              Privacy, Terms, Data Protection
-    support/ · support-us/ · marketing/
-    account/ · user/    Authenticated area
-    error404/
-  features/
-    calendar-snake/     Interactive "calendar snake" mini-experience
-  components/         Reusable UI (menu, footer, nav bars, breadcrumb,
-                      share-buttons, download-app-modal, preloader, …)
-  core/              Cross-cutting: services, guards, interceptors,
-                     message-bus, models, pipes, helpers, constants, utils
-  app.routes.ts      Route table (+ app.config.ts / app.config.server.ts)
-```
+The app is organized by role, mirroring the mobile app's conventions so patterns stay
+consistent across the two Angular codebases:
 
-The `core/` layer mirrors the app's conventions (a `message-bus`, `interceptors`, `guards`,
-typed `services`) so patterns are consistent across the two Angular codebases.
+| Area | Contents |
+| --- | --- |
+| **Route-level screens** | Marketing landing, per-feature SEO landings, blog views, interactive web tools, legal, support, the authenticated area, and a not-found page |
+| **Interactive features** | Small self-contained interactive experiences |
+| **Shared UI components** | Menu, footer, navigation bars, breadcrumb, share buttons, download-app prompt, preloader, and similar building blocks |
+| **Cross-cutting core** | Services, route guards, HTTP interceptors, an internal event bus, models, pipes, helpers, and utilities |
+| **App configuration** | The route table plus separate client and server application configs |
 
 ---
 
 ## Routing & pages
 
-Routing (`app.routes.ts`) is organized around SEO landing pages and content:
+Routing is organized around SEO landing pages and content:
 
 | Route group | Purpose |
 | --- | --- |
-| `/` , `/about` | Main landing (hero, philosophy, features, FAQ, CTA) |
-| `/features/*` | Dedicated landing per feature: `life-calendar`, `time-analysis`, `life-expectancy`, `live-calculator`, `wasted-calculator`, `converter`, `questions` |
-| `/blog/**` | Blog index, posts, tag and pagination routes |
-| `/marketing`, `/support-us` | Campaign / support pages |
-| `/privacy-policy`, `/terms-of-service`, `/data-protection` | Legal |
-| `/contact`, `/support` | Support |
-| `/account`, `/user/**` | Authenticated area |
-| `/404` | Not found |
+| **Home / about** | Main landing (hero, philosophy, features, FAQ, CTA) |
+| **Per-feature landings** | One dedicated SEO landing per product feature (life calendar, time analysis, life-expectancy, the calculators, converter, questions) |
+| **Blog** | Index, posts, and tag / pagination routes |
+| **Campaign & support** | Marketing and support pages |
+| **Legal** | Privacy, Terms, Data Protection |
+| **Authenticated area** | Account and profile |
+| **Not found** | 404 |
 
 Two route guards shape access:
 
-- **`stagingAccessGuard`** — gates the site on staging environments (behind a staging-access
-  modal).
-- **`redirectAuthenticatedGuard`** — routes signed-in users away from marketing entry points.
+- A **staging-access guard** gates the site on staging environments (behind a staging-access
+  prompt).
+- An **authenticated-redirect guard** routes signed-in users away from marketing entry points.
 
-Legacy blog URLs are preserved via a `BLOG_REDIRECTS` table prepended to the routes, so old
-links keep working (complemented by build-time redirect generation).
+Legacy blog URLs are preserved via a **redirect table** prepended to the routes, complemented
+by build-time redirect generation, so old links keep working.
 
 ---
 
@@ -82,19 +70,19 @@ links keep working (complemented by build-time redirect generation).
 The site is built as a **prerendered (SSG) Angular app**:
 
 - **`@angular/ssr` + `@angular/platform-server`** provide server rendering.
-- `angular.json` configures a **server entry** (`src/main.server.ts`) and **prerender** using
-  a routes file (`src/prerender-routes.txt`).
-- That routes file is **generated** from static routes plus every blog route derived from the
+- The build configures a **server entry** and prerenders the site using a **generated routes
+  list**.
+- That routes list is generated from static routes plus every blog route derived from the
   content manifest — so new posts automatically get prerendered pages.
 
 ```text
-src/prerender-routes.txt   ← generated (static routes + blog routes from manifest)
+Generated route list   (static routes + blog routes from the content manifest)
         │
         ▼
-ng build --configuration production   → prerenders each route to static HTML
+Production build   → prerenders each route to static HTML
         │
         ▼
-dist/ (static HTML + hydrating Angular app)
+Static HTML + a hydrating Angular app
 ```
 
 The result: crawlers and first paint get real HTML; the Angular app then hydrates for
@@ -108,50 +96,48 @@ The blog is **content-as-code**. Authors write Markdown with front-matter; a Nod
 compiles it into JSON assets and prerender routes.
 
 ```text
-content/blog/posts/*.md   (Markdown + front-matter, + assets/)
+Markdown posts   (front-matter + per-post assets)
         │
-        │  validate-blog-content.mjs      (fail fast on bad content)
+        │  validation      (fail fast on bad content)
         ▼
-   build-blog-content.mjs
+   Content build
      • gray-matter → parse front-matter
      • marked → Markdown to HTML
-     • blog-linking.mjs → rewrite [[wiki-links]], normalize SEO hrefs
+     • internal wiki-link rewriting + SEO href normalization
      • compute word count / reading time / pagination
         │
-        ├──▶ src/assets/blog/manifest.json         (all published posts' metadata)
-        └──▶ src/assets/blog/posts/<slug>.json      (full post + rendered HTML)
+        ├──▶ posts manifest        (metadata for all published posts)
+        └──▶ per-post JSON          (full post + rendered HTML)
         │
-        ├──▶ generate-og-images.mjs      → per-post Open Graph images (canvas)
-        ├──▶ generate-redirects.mjs      → redirect rules
-        └──▶ generate-prerender-routes.mjs → src/prerender-routes.txt
-                                              (paginated blog + tag indexes)
+        ├──▶ per-post Open Graph images   (canvas)
+        ├──▶ redirect rules
+        └──▶ generated prerender route list   (paginated blog + tag indexes)
 ```
 
-At runtime the Angular blog components read the generated `manifest.json` and per-slug JSON —
-there is **no CMS or database** in the request path, which keeps the site static and cheap to
-host.
+At runtime the Angular blog components read the generated manifest and per-post JSON — there is
+**no CMS or database** in the request path, which keeps the site static and cheap to host.
 
-| Script | Responsibility |
+| Pipeline stage | Responsibility |
 | --- | --- |
-| `validate-blog-content.mjs` | Validates front-matter/content before building |
-| `build-blog-content.mjs` | Markdown → JSON (manifest + per-post) |
-| `blog-linking.mjs` | Internal wiki-link rewriting and SEO href normalization |
-| `generate-og-images.mjs` | Open Graph share images |
-| `generate-redirects.mjs` | Redirect rules for moved/legacy URLs |
-| `generate-prerender-routes.mjs` | Builds the prerender route list |
-| `generate-seo-artifacts.mjs` | Sitemaps and SEO artifacts (host-targeted) |
+| **Validation** | Validates front-matter / content before building |
+| **Content build** | Markdown → JSON (manifest + per-post) |
+| **Internal linking** | Wiki-link rewriting and SEO href normalization |
+| **OG images** | Open Graph share images |
+| **Redirects** | Redirect rules for moved / legacy URLs |
+| **Prerender routes** | Builds the prerender route list |
+| **SEO artifacts** | Sitemaps and SEO artifacts (host-targeted) |
 
 ---
 
 ## SEO artifacts
 
-`generate-seo-artifacts.mjs` runs after the production build and is **target-aware**
-(`--target=azure` or `--target=firebase`), emitting host-appropriate:
+A build step runs after the production build and is **target-aware** (per host), emitting
+host-appropriate:
 
 - **Sitemaps** covering all prerendered routes and blog posts.
-- **Redirects** (from `generate-redirects.mjs`) wired into each host's config.
+- **Redirects** wired into each host's configuration.
 - **Open Graph images** and metadata for social sharing.
-- Canonical URLs and per-page titles (route `data: { title }`).
+- Canonical URLs and per-page titles (carried as route metadata).
 
 ---
 
@@ -159,8 +145,8 @@ host.
 
 The web site uses **Firebase Authentication** (`@firebase/auth`) — the *same* identity system
 as the mobile app and backend, so a user's account is unified across surfaces. Sign-in powers
-the `/account` and `/user` area, while `redirectAuthenticatedGuard` keeps authenticated users
-out of marketing funnels. (Apple web sign-in is planned per the UI repo's auth docs.)
+the authenticated area, while the authenticated-redirect guard keeps signed-in users out of
+marketing funnels. (Apple web sign-in is planned.)
 
 ---
 
@@ -172,36 +158,33 @@ The site targets **two hosts** from one codebase:
                  ┌───────────────────────────────┐
                  │  Content + Angular source     │
                  └───────────────┬───────────────┘
-                                 │ validate → content:build →
-                                 │ generate-prerender-routes → ng build (prod)
-                                 │ → generate-seo-artifacts
+                                 │ validate → build blog content →
+                                 │ generate prerender routes → production build →
+                                 │ generate SEO artifacts (per host)
                 ┌────────────────┴─────────────────┐
                 ▼                                   ▼
-   build:prerender:firebase              build:prerender:azure
-   (config: production,firebase)         (config: production)
-                ▼                                   ▼
-     Firebase Hosting                     Azure Static Web Apps
-     (firebase.json, .firebaserc)         (staticwebapp.config.json)
+        Firebase Hosting                   Azure Static Web Apps
+        (primary)                          (alternative target)
 ```
 
-| Target | Config | Command |
-| --- | --- | --- |
-| **Firebase Hosting** (primary) | `firebase.json`, `.firebaserc` | `npm run deploy` → `build:prerender:firebase` + `firebase deploy --only hosting` |
-| **Azure Static Web Apps** | `staticwebapp.config.json` | `npm run build:prerender:azure` |
+| Target | Notes |
+| --- | --- |
+| **Firebase Hosting** (primary) | Primary hosting + Firebase Auth |
+| **Azure Static Web Apps** | Alternative deploy target |
 
-Both flows: validate content → build blog JSON → generate prerender routes → production
-Angular build (prerender) → generate SEO artifacts for the chosen host.
+Both flows share the same pipeline: validate content → build blog JSON → generate prerender
+routes → production Angular build (prerender) → generate SEO artifacts for the chosen host.
 
 ---
 
 ## Shared with the rest of the system
 
 - **API client** — like the mobile app, the site consumes the **generated Angular client**
-  from the backend's `openapi/swagger.json` (`projects/waste-api-client`), so web ↔ API stays
-  type-safe. See [backend architecture](architecture-backend.md#api-contract--client-generation).
+  from the backend's OpenAPI specification, so web ↔ API stays type-safe. See
+  [backend architecture](architecture-backend.md#api-contract--client-generation).
 - **Firebase identity** — one auth system across app, web, and API.
-- **Conventions** — a shared `core/` shape (message-bus, guards, interceptors, services) keeps
-  the two Angular codebases consistent.
+- **Conventions** — a shared cross-cutting core (event bus, guards, interceptors, services)
+  keeps the two Angular codebases consistent.
 
 ---
 

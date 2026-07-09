@@ -1,10 +1,8 @@
 <div align="center">
 
-# Wastime
+<img src="docs/assets/cover.png" alt="Wastime — Mindful Time, Life &amp; Event Tracker · See your time. Live on purpose." width="100%" />
 
-### Mindful Time, Life &amp; Event Tracker
-
-**See your time. Live on purpose.**
+**Mindful Time, Life &amp; Event Tracker** — *See your time. Live on purpose.*
 
 `Free core` · `Offline-first` · `Privacy by default`
 
@@ -33,14 +31,6 @@ time, make a decision, and get back to life outside the screen.
 
 > **About this repository** — this is the **public overview** of the Wastime project. It
 > describes the product, its architecture, and the technology behind it.
-
-<!-- TODO: add a screenshot / hero image row here, e.g.:
-<div align="center">
-  <img src="docs/assets/screenshot-calendar.png" width="30%" />
-  <img src="docs/assets/screenshot-tracking.png" width="30%" />
-  <img src="docs/assets/screenshot-calculators.png" width="30%" />
-</div>
--->
 
 ---
 
@@ -74,6 +64,29 @@ time, make a decision, and get back to life outside the screen.
   categories.
 - **📊 Stats &amp; Insights** — overviews and trend slides that grow with your data, filters by
   topic / period / minimum duration. Offline-first, sync-ready.
+
+---
+
+## Screenshots
+
+<div align="center">
+
+<table>
+  <tr>
+    <td><img src="docs/assets/phones/screenshot-1.webp" width="200" alt="Time tracking — Meaningful vs Wasted" /></td>
+    <td><img src="docs/assets/phones/screenshot-2.webp" width="200" alt="Log time — quick manual entry" /></td>
+    <td><img src="docs/assets/phones/screenshot-3.webp" width="200" alt="Life calendar — your life at a glance" /></td>
+    <td><img src="docs/assets/phones/screenshot-4.webp" width="200" alt="Insights &amp; forecasts per topic" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/phones/screenshot-5.webp" width="200" alt="Calculators — life expectancy &amp; more" /></td>
+    <td><img src="docs/assets/phones/screenshot-6.webp" width="200" alt="Money to Time converter" /></td>
+    <td><img src="docs/assets/phones/screenshot-7.webp" width="200" alt="Reflective questions" /></td>
+    <td><img src="docs/assets/phones/screenshot-8.webp" width="200" alt="Stats &amp; insights" /></td>
+  </tr>
+</table>
+
+</div>
 
 ---
 

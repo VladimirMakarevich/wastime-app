@@ -5,7 +5,9 @@ to native **iOS** and **Android** binaries with Capacitor, and also runnable on 
 **offline-first** — every feature works with no network, and cloud sync is an optional layer
 on top.
 
-For versions and package details, see [tech-stack.md](tech-stack.md#mobile-app).
+> This document describes the architecture at the level of **layers, roles, and patterns**
+> rather than concrete file or module names. For versions and libraries, see
+> [tech-stack.md](tech-stack.md#mobile-app).
 
 ---
 
@@ -15,160 +17,226 @@ The architecture is a direct expression of the product's promises:
 
 | Product promise | Architectural consequence |
 | --- | --- |
-| **Works fully offline** | All reads/writes hit a local **encrypted SQLite** database; the network is never on the critical path. |
+| **Works fully offline** | All reads/writes hit a local **encrypted embedded database**; the network is never on the critical path. |
 | **Privacy by default** | Cloud sync is opt-in and **consent-gated**; data leaves the device only after explicit user consent. |
-| **Your data, your rules** | Local **export/import (JSON)**, soft-deletes, and full local ownership of the datastore. |
-| **A tool, not a life center** | Feature modules are independent and lazily loaded; the app stays small and fast. |
+| **Your data, your rules** | Local **export/import**, soft-deletes, and full local ownership of the datastore. |
+| **A tool, not a life center** | Feature areas are independent and lazily loaded; the app stays small and fast. |
 
 ---
 
 ## Layered overview
 
+The app is organized into four layers with a strict top-to-bottom dependency direction.
+
 ```text
 ┌───────────────────────────────────────────────────────────────┐
 │  Presentation                                                  │
-│    pages/ (feature screens)   components/ (shared UI)          │
-│    Ionic components · Angular router · Quill · ECharts         │
+│    feature screens · shared UI components                      │
+│    mobile UI kit · router · charts · rich-text editor          │
 └───────────────────────────┬───────────────────────────────────┘
-                            │ services / message bus
+                            │ services / event bus
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Application & cross-cutting  (@core/)                          │
-│    services · auth · interceptors · guards · message-bus       │
-│    states · i18n · remote-config · dark-mode · statistics      │
+│  Application & cross-cutting                                   │
+│    app services · auth · HTTP interceptors · route guards      │
+│    internal event bus · i18n · remote config · theming · …     │
 └───────────────────────────┬───────────────────────────────────┘
-                            │ repositories (storages)
+                            │ repositories
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Data  (data/)                                                 │
-│    storages/ (repositories) → custom ORM → entities            │
-│    migrations · soft-delete · sqlite.service                   │
-│    sync/ (optional, consent-gated — in progress)               │
+│  Data                                                          │
+│    repository layer → object mapping (ORM) → domain entities   │
+│    schema migrations · soft-delete · connection management     │
+│    synchronization (optional, consent-gated — in progress)     │
 └───────────────────────────┬───────────────────────────────────┘
-                            │ SQLite driver
+                            │ database driver
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Persistence & native  (Capacitor)                             │
-│    @capacitor-community/sqlite (native, encrypted)             │
-│    sql.js / WASM (web)   ·   secure storage · preferences      │
+│  Persistence & native  (Capacitor bridge)                      │
+│    encrypted embedded SQLite (native) / WebAssembly SQLite (web)│
+│    secure storage · key-value preferences                      │
 │    device plugins: notifications, camera, filesystem, …        │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-Dependencies flow **downward only**: presentation depends on `@core`, `@core` depends on the
-data layer, the data layer depends on the SQLite driver. Nothing lower reaches up.
+Dependencies flow **downward only**: presentation depends on the application layer, which
+depends on the data layer, which depends on the database driver. Nothing lower reaches up.
 
 ---
 
 ## Presentation layer
 
-### Feature modules (`src/app/pages/`)
+### Feature areas
 
-Each product capability is an independent, lazily loaded feature area:
+Each product capability is an independent, lazily loaded feature area. They map one-to-one to
+the user-facing features:
 
-| Module | Product feature |
+| Feature area | What it does |
 | --- | --- |
-| `time-trackers/` | Time Tracking (Meaningful vs Wasted), topics & groups |
-| `timers-v2/` | Timers with pauses; converts sessions into time entries |
-| `edit-time/` | Manual time-entry creation and editing |
-| `calendars/` | Life in Weeks / Life in Days, milestones & groups |
-| `life-expectancy/` | Life-expectancy setup (country-based or manual) |
-| `calculators/` | The 5 calculators (Live, Wasted, Basic, 24H, Reverse) |
-| `converters/` | Money → Time converter and accounts |
-| `statistics/` | Stats & insights, trend slides |
-| `journey/` | Roadmap / time-journey stories |
-| `questions/` | Reflective questions |
-| `onboarding/` | First-run setup flow |
-| `home/`, `main/`, `account/`, `auth/` | Shell, dashboard, profile, sign-in |
+| **Time tracking** | Meaningful vs Wasted spaces, topics and groups, quotas and forecasts |
+| **Timers** | A single active timer with pauses; sessions convert into time entries |
+| **Time entry editing** | Manual creation and editing of time records |
+| **Life calendars** | Life in Weeks / Life in Days, with milestones and groups |
+| **Life-expectancy setup** | Country-based or manual life-expectancy configuration |
+| **Calculators** | The five calculators (Live, Wasted, Basic, 24H, Reverse) |
+| **Converter** | Money → Time conversion and accounts |
+| **Statistics** | Overviews, trends, and insights |
+| **Journey** | Roadmap / time-journey stories |
+| **Reflective questions** | Guided questions |
+| **Onboarding** | First-run setup flow |
+| **Shell** | Dashboard, profile/account, and sign-in |
 
-### Shared UI (`src/app/components/`)
+### Shared UI
 
-Reusable presentational building blocks: `charts/`, `color-picker/`, `date-select/`,
-`time-select/`, `profile-image-cropper/`, `searchable-select/`, `user-avatar/`,
-`skeleton-page/`, `loading/`, `swipe-item/`, `init-error-panel/`, and more. UI is built on
-**Ionic** components with **ECharts** for visualization and **Quill** for rich text.
+A library of reusable presentational components — charts, color pickers, date/time selectors,
+image cropping, searchable selects, avatars, skeleton loaders, swipeable rows, and error/empty
+states. The UI is built on a **mobile component kit** with a **charting library** for
+visualization and a **rich-text editor** for notes.
 
 ---
 
-## Application & cross-cutting layer (`@core/`)
+## Application & cross-cutting layer
 
-`@core` holds everything that is not a screen and not persistence.
+This layer holds everything that is neither a screen nor persistence. It is organized by
+responsibility:
 
 | Area | Responsibility |
 | --- | --- |
-| `services/` | Cross-app services: `dark-mode`, `network`, `statistics`, `life-expectancy`, `haptics`, `log`, `locale-info`, `screen`, `data-backup`, `remote-config`, `i18n`, `infrastructure` |
-| `auth/` | Firebase authentication (`auth.service`), `secure-token-storage.service` (keychain/keystore-backed tokens), guest mode |
-| `interceptors/` | HTTP pipeline: `auth.interceptor` (attach tokens), `network.interceptor` (connectivity), `performance-http.interceptor` (Firebase Performance traces) |
-| `message-bus/` | Decoupled in-app event bus (`decorators`, `factories`, `messages`, `services`) so modules communicate without direct references |
-| `guards/` | Route guards |
-| `states/` | Global runtime state (e.g. `device-config.global`) |
-| `pipes/`, `directives/`, `form-validation/`, `forms/` | Angular building blocks |
-| `errors/`, `enums/`, `extensions/`, `utils/` | Shared primitives |
+| **App services** | Cross-app concerns: theming / dark mode, connectivity, analytics, haptics, logging, localization, backup, remote configuration |
+| **Authentication** | Federated sign-in (Google / Apple), secure token storage backed by the platform keychain/keystore, and a guest mode |
+| **HTTP interceptors** | A request pipeline that attaches auth tokens, reacts to connectivity, and emits performance traces |
+| **Internal event bus** | A typed publish/subscribe bus that decouples feature areas |
+| **Route guards** | Access control for navigation |
+| **Global state** | Small, app-wide runtime state (e.g. device configuration) |
+| **Angular building blocks** | Shared pipes, directives, form validators, and utilities |
 
-### Internal message bus
+### Internal event bus
 
-Rather than wiring feature modules directly to one another, cross-cutting events flow through
-a typed **message bus** (`@core/message-bus`). This keeps features decoupled — for example, a
-timer completing can publish an event that statistics and sync consume independently.
+Rather than wiring feature areas directly to one another, cross-cutting events flow through a
+typed **event bus**. This keeps features decoupled — for example, a timer completing can
+publish an event that statistics and synchronization consume independently.
 
 ---
 
-## Data layer (`data/`) — the offline-first core
+## Data layer — the offline-first core
 
-This is the heart of the app. All application data lives in a **local SQLite database**,
-accessed through a small custom ORM and a repository ("storage") layer.
+This is the heart of the app. All application data lives in a **local embedded database**,
+accessed through a lightweight object-mapping layer and a repository abstraction.
 
 ```text
-storages/*.storage.ts        Repository per aggregate (topics, time-items, milestones, …)
+Repository layer          One repository per aggregate; typed CRUD & queries
       │  uses
-data/orm/                    Custom decorator-based ORM (TypeORM-inspired)
+Object mapping (ORM)      Lightweight, decorator-based mapping tailored for SQLite
       │  maps
-data/enteties/*.entity.ts    Entity definitions (entity.base.ts + per-feature entities)
+Domain entities           Plain models extending a common base entity
       │  persisted via
-sqlite.service.ts            SQLite connection management
-tracked-sqlite-connection.ts Connection wrapper with change tracking
+Connection management     Opens/tracks the database connection
       │  runs on
-@capacitor-community/sqlite  Native encrypted SQLite  /  sql.js (WASM) on web
+Embedded SQLite driver    Encrypted native SQLite  /  WebAssembly SQLite on the web
 ```
 
-### Custom ORM (`data/orm/`)
+### Object mapping (ORM)
 
-A lightweight, decorator-based mapping layer (inspired by TypeORM) tailored for SQLite:
+A small, decorator-based mapping layer (in the spirit of established ORMs) tailored for SQLite:
 
-- **Decorators** (`decorators/`) — `entity/`, `columns/`, plus `Versioned` (optimistic
-  concurrency version field), `GeneratedMetadataArgs`, `EmbeddedMetadataArgs`, and
-  `ValueTransformer`.
-- **Transformers** (`transformers/`) — bridge type mismatches between JS and SQLite, e.g.
-  `boolean-number.transformer` (SQLite has no boolean type) and `nullish.transformer`.
-- **Utilities** — `MixedList`, `ObjectUtils`.
+- **Entity & column decorators** describe how models map to tables and columns.
+- A **row-versioning decorator** stamps each row with a version — the basis for optimistic
+  concurrency and conflict detection during sync.
+- **Value transformers** bridge type mismatches between JavaScript and SQLite — for example,
+  representing booleans as integers (SQLite has no boolean type) and normalizing null/undefined.
 
-The `Versioned` decorator is deliberate: per-row versioning underpins **optimistic concurrency
-and conflict detection** for the sync engine.
+### Domain entities
 
-### Entities (`data/enteties/`)
+Domain models are mapped to tables and share a common base entity that carries cross-cutting
+fields (identity, timestamps, soft-delete and version markers). There is one entity per domain
+concept across the feature set — time records, topics, timers, milestones, calculator results,
+converter accounts, and so on.
 
-Domain models mapped to tables, all extending `entity.base.ts`. They mirror the product
-features — e.g. `topic.entity`, `time-item.entity`, `timer-state.entity`,
-`life-milestone.entity`, `life-expectancy.entity`, `converter-account.entity`, and the
-calculator entities (`live-`, `wasted-`, `basic-`, `twenty-four-`, `reverse-calculation`).
+### Repositories
 
-### Repositories (`data/storages/`)
+Each aggregate is accessed through a repository built on a shared base, exposing typed CRUD and
+query operations to the application layer. Cross-cutting data concerns live alongside:
 
-Each entity has a `*.storage.ts` repository extending `storage.base.ts`, exposing typed CRUD
-and query operations to the application layer. Cross-cutting data concerns live alongside:
+- **Soft-delete** — rows are tombstoned rather than physically removed, which is required for
+  correct synchronization and for undo.
+- **Raw datastore access** — a low-level path used for export/import and diagnostics.
 
-- `soft-delete.service.ts` — rows are **soft-deleted** (tombstoned), which is required for
-  correct sync and for undo.
-- `raw-database.storage.ts` — low-level access for export/import and diagnostics.
-- Feature repositories such as `timer-v2-repository.ts` and `calendar-config-repository.ts`.
+### Schema migrations
 
-### Migrations (`data/migrations/`)
+A versioned migration system evolves the local database as the app updates, so existing users'
+data is upgraded safely on device.
 
-A versioned schema migration system (`migration.service.ts` + `upgrades/`) evolves the local
-database as the app updates, so existing users' data is upgraded safely on device.
+---
 
-### Initialization (`initialize.app.service.ts`)
+## Application startup & initialization
 
-Bootstraps the datastore on launch: opens the (encrypted) SQLite connection, runs pending
-migrations, and prepares repositories. Startup has guard timeouts and an
-`init-error-panel/` fallback so a corrupt or slow init is recoverable rather than fatal.
+Because the datastore must be ready before most features can render, startup is a deliberate
+**multi-phase sequence** with a live progress screen and a stall watchdog — not a single
+blocking call.
+
+```text
+Bootstrap ─▶ Phase 1: Critical (blocking, progress UI) ─▶ app interactive
+                    │                                          │
+              progress + watchdog                             ▼
+                                              Phase 2: Secondary (after "stable")
+                                                               │
+                                                               ▼
+                                                Phase 3: Background (on idle)
+```
+
+### Bootstrap
+
+Before Angular starts, the app initializes the Firebase application, registers the web
+components it needs (carousel elements, and — on the web — the WebAssembly SQLite element), and
+configures the dependency-injection container: the HTTP client and its **interceptor chain**
+(connectivity → auth → crash reporting → performance), the router (with route preloading
+disabled to protect first paint), Firebase authentication (with native persistence), a global
+error handler, and the internal event bus. A lightweight app-initializer starts performance
+tracking.
+
+### Phase 1 — Critical initialization (blocking)
+
+The first phase brings the datastore up; it is the only part that gates the UI. It runs behind
+a dedicated **progress screen** and advances through well-defined, individually reported steps:
+
+```text
+starting → key-value store ready → database opened
+        → schema migrations (init → running → complete) → ready
+```
+
+- **Key-value store & query tracking** — bring up lightweight settings storage first.
+- **Database** — open the encrypted embedded database (on the web, set up the WebAssembly store
+  beforehand).
+- **Schema migrations** — apply any pending migrations while streaming progress to the screen;
+  a minimum display time avoids a distracting flash when migrations are fast.
+- **Launch-type detection** — the app classifies the launch as **first install**, **update**,
+  or **normal** (by comparing the stored version against the current one), which drives
+  onboarding vs. update flows.
+
+### Progress reporting & stall detection
+
+A single **initialization-state service** holds the current step, percentage, and message as
+reactive signals, which the progress screen renders live. A **watchdog** runs alongside: on an
+interval it checks the time elapsed since the last progress tick and enforces a **per-step
+timeout** (falling back to a default). If a step makes no progress within its budget, the app
+raises a structured *stall* error and shows an **error / recovery panel** instead of hanging —
+so a slow or corrupt start is recoverable rather than fatal.
+
+### Phase 2 — Secondary initialization (deferred)
+
+Once Angular reports the application is **stable**, a second phase runs **without blocking** the
+now-interactive UI: it loads device settings, resolves locale information, and initializes the
+remaining app services.
+
+### Phase 3 — Background initialization (idle)
+
+Non-critical work is deferred further still and scheduled during **idle time** (via the
+browser's idle-callback, with a timeout fallback). These are best-effort tasks — for example
+analytics initialization with retries — kept off the startup critical path entirely.
+
+### Why phased?
+
+Splitting startup this way keeps **time-to-interactive** short: only the datastore and its
+migrations gate the UI; everything else is pushed to after-stable or idle. The explicit step
+model, the progress screen, and the watchdog together make a normally opaque process
+**observable and resilient**.
 
 ---
 
@@ -176,73 +244,70 @@ migrations, and prepares repositories. Startup has guard timeouts and an
 
 ### Local-first writes
 
-Every user action writes to local SQLite **immediately** and the UI updates from local state.
-There is no "saving to server" spinner on the critical path — the network is never required.
+Every user action writes to the local database **immediately**, and the UI updates from local
+state. There is no "saving to server" step on the critical path — the network is never
+required.
 
 ### Sync engine (optional, consent-gated — *in progress*)
 
-The `data/sync/` module implements an **outbox-based synchronization engine** for optional
-multi-device sync. It is architected but **not yet enabled** (`sync.types.ts` is gated behind
-a `TODO: enable when BE ready`), so the current shipping app is local-only. The design:
+An **outbox-based synchronization engine** provides optional multi-device sync. It is
+architected but **not yet enabled** in the shipping app, which is currently local-only. The
+design:
 
 ```text
-Local write ──▶ Outbox (sync-outbox.repository)
+Local write ──▶ Outbox (queue of pending changes)
                      │  batched push
                      ▼
-             sync.worker.ts  (Web Worker, off the UI thread)
-                     │  HTTP (typed API client)
+             Background worker  (off the UI thread)
+                     │  HTTPS (typed API client)
                      ▼
-              Backend API  ◀──▶  PostgreSQL
-                     │  pull changes (since cursor)
+              Backend API  ◀──▶  Cloud database
+                     │  pull changes (since a cursor)
                      ▼
-        Conflict detection (Versioned rows + expectedVersion)
+        Conflict detection (row versions + expected version)
                      │
         ┌────────────┴─────────────┐
-   auto-merge                sync-conflict.repository
-                             → sync-conflict-viewer (user resolves)
+   auto-merge                conflict store
+                             → user-facing resolution
 ```
 
-Key building blocks already scaffolded in `data/sync/`:
+The building blocks are designed to be **idempotent, versioned, conflict-aware, and
+consent-first**:
 
-| Component | Role |
+| Concern | Approach |
 | --- | --- |
-| `sync-outbox.repository` | Queue of local changes pending push (outbox pattern) |
-| `sync-state.repository` | Sync cursor / last-synced sequence per entity |
-| `idempotency-cache.repository` | Idempotency keys so retried pushes don't duplicate |
-| `sync-conflict.repository` + `sync-conflict-viewer.service` | Persist and surface conflicts for user resolution |
-| `sync-outbox-producer.service` | Turns local writes into outbox items |
-| `sync-consent.service` | **Privacy gate** — sync only runs after explicit consent |
-| `sync-activity-log.service`, `sync-metrics.service`, `sync-status.service` | Observability of sync |
-| `sync-error-handler.service` | Retriable vs terminal error handling |
-| `sync.worker.ts` | Runs push/pull off the main thread |
+| **Outbox** | Local changes are queued for push (outbox pattern) |
+| **Sync cursor** | Per-entity "last synced" position drives incremental pulls |
+| **Idempotency** | Idempotency keys ensure retried pushes never duplicate |
+| **Conflicts** | Version mismatches are detected, stored, and surfaced for user resolution |
+| **Consent gate** | Sync only runs after explicit user consent — the privacy boundary |
+| **Observability** | Activity log, metrics, and status reporting for sync |
+| **Off-thread** | Push/pull run in a background worker, never blocking the UI |
 
-The design goals are explicit in the code: **idempotent, versioned, conflict-aware, and
-consent-first** — matching the product's privacy stance.
+This mirrors the product's privacy stance: nothing leaves the device implicitly.
 
 ### Network awareness
 
-`@core/services/network.service` and `network.interceptor` make the app connectivity-aware
-(via `@capacitor/network`), so sync (when enabled) only activates on suitable connections and
-the UI degrades gracefully offline.
+The app is connectivity-aware, so sync (when enabled) only activates on suitable connections
+and the UI degrades gracefully offline.
 
 ---
 
 ## Native configuration
 
-Native behavior is declared in `capacitor.config.ts` (in the app repository). Highlights:
+Native behavior is declared through the Capacitor bridge. Highlights:
 
-| Setting | Value / effect |
+| Concern | Effect |
 | --- | --- |
-| `appId` / `appName` | `com.wastime.waste.app` / `Wastime` |
-| **SQLite encryption** | Enabled on both iOS and Android; dedicated iOS keychain prefix |
-| **CapacitorHttp** | Enabled — native HTTP layer |
-| **Keyboard** | Native resize; style switched dynamically by `DarkModeService` |
-| **Firebase Auth** | Providers `google.com`, `apple.com`; native auth enabled |
-| **Crashlytics** | Enabled, including during development |
-| **Status bar** | Overlays the web view (edge-to-edge), with safe-area handling |
+| **Database encryption** | Enabled on both iOS and Android, with platform keychain-backed keys |
+| **Native HTTP** | Requests use the platform's native HTTP layer |
+| **Keyboard** | Native resize behavior; style switches with the app's light/dark theme |
+| **Federated auth** | Google and Apple providers, with native sign-in |
+| **Crash reporting** | Enabled, including during development |
+| **Status bar** | Edge-to-edge layout with safe-area handling |
 
-Native capabilities used across features (notifications, camera, file picker, filesystem,
-share, haptics, keep-awake, in-app-review) are listed in
+The full set of native capabilities (notifications, camera, file picking, filesystem, share,
+haptics, keep-awake, in-app review) is listed in
 [tech-stack.md](tech-stack.md#native-device-capabilities-capacitor-plugins).
 
 ---
@@ -250,30 +315,29 @@ share, haptics, keep-awake, in-app-review) are listed in
 ## Example data flow: logging a time entry
 
 ```text
-1. User taps "log" in  pages/time-trackers  (or stops a timer in  timers-v2)
-2. Feature service calls  time-item.storage  (repository)
-3. Repository maps the entity via the custom ORM and writes to local SQLite
-      → soft-delete/versioning fields maintained automatically
-4. sqlite.service commits; tracked-connection records the change
-5. UI updates from local state (instant); statistics recompute
-6. (When sync is enabled) sync-outbox-producer enqueues the change;
-   sync.worker pushes it after consent + connectivity checks
+1. User logs time in the tracking feature (or stops a timer)
+2. A feature service calls the corresponding repository
+3. The repository maps the entity via the ORM and writes to the local database
+      → soft-delete and version fields are maintained automatically
+4. The write is committed and the change is tracked
+5. The UI updates from local state (instant); statistics recompute
+6. (When sync is enabled) the change is enqueued in the outbox; a background
+   worker pushes it after consent and connectivity checks
 ```
 
-Notice that steps 1–5 are entirely local and synchronous with the user — the cloud (step 6)
-is additive and never blocks the experience.
+Steps 1–5 are entirely local and synchronous with the user — the cloud (step 6) is additive
+and never blocks the experience.
 
 ---
 
 ## Build, versioning & release
 
-- **Web build → native sync:** Angular builds to `www/`, then `npx cap sync` copies it into
-  the native Android/iOS projects.
-- **API client generation:** `npm run generate:api-client` regenerates the typed Angular
-  client into `projects/waste-api-client` from the backend's `openapi/swagger.json`.
-- **Automated versioning:** a pre-commit hook bumps the patch version; release scripts sync
-  that version into Android `build.gradle` and iOS `project.pbxproj`
-  (`versionCode = major*10000 + minor*100 + patch`).
-- **Store builds:** Android `./gradlew bundleRelease`; iOS `xcodebuild … archive`.
+- **Web build → native sync:** the Angular build output is synced into the native iOS/Android
+  projects via the Capacitor CLI.
+- **API client generation:** a typed API client is generated from the backend's OpenAPI spec,
+  so the app and backend stay in lock-step.
+- **Automated versioning:** a pre-commit step bumps the version and syncs it into the native
+  Android and iOS project files.
+- **Store builds:** produced with the standard Android and iOS platform toolchains.
 
-See [tech-stack.md](tech-stack.md#native-tooling) for the full toolchain.
+See [tech-stack.md](tech-stack.md#native-tooling) for the toolchain details.

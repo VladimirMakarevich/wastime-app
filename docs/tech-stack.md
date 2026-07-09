@@ -17,9 +17,8 @@ contract:
 | **Backend API** | Optional cloud sync, accounts, storage | ASP.NET Core 9.0 |
 | **Web site** | Marketing landing + blog, web access | Angular 21 with SSR |
 
-> Versions below reflect the current manifests (`package.json`, `*.csproj`). Minor/patch
-> versions move over time; the major versions and the architectural choices are the stable
-> part of this document.
+> Versions below reflect the projects' current manifests. Minor/patch versions move over time;
+> the major versions and the architectural choices are the stable part of this document.
 
 ---
 
@@ -71,8 +70,8 @@ cloud sync is optional.
 | **`@capacitor/preferences`** | 8 | Small native key/value settings |
 | **`capacitor-secure-storage-plugin`** | 0.13 | Secure (keychain/keystore) storage for sensitive values |
 
-SQLite is configured with **encryption on both platforms** and a dedicated iOS keychain
-prefix (see [`capacitor.config.ts`](architecture-mobile.md#native-configuration)).
+SQLite is configured with **encryption on both platforms** and platform keychain-backed keys
+(see [native configuration](architecture-mobile.md#native-configuration)).
 
 ### Native device capabilities (Capacitor plugins)
 
@@ -120,7 +119,7 @@ prefix (see [`capacitor.config.ts`](architecture-mobile.md#native-configuration)
 | `@capacitor/cli`, `@capacitor/android`, `@capacitor/ios` | Native project sync and builds |
 | `@capacitor/assets` | Icon and splash-screen generation |
 | Android Studio / Gradle, Xcode | Platform builds and store submission |
-| Custom version scripts | Sync `package.json` version into Android `build.gradle` and iOS `project.pbxproj` |
+| Custom version scripts | Sync the app version into the native Android and iOS project files |
 
 ---
 
@@ -140,22 +139,21 @@ require it to function.
 
 ### Project layers
 
-The solution (`Ti.Waste.sln`) is split into focused projects with a one-directional
-dependency flow:
+The backend solution is split into focused projects with a one-directional dependency flow:
 
 ```text
-Ti.Waste.Api          → HTTP layer: controllers, auth, versioning, Swagger
-   └─ Ti.Waste.Core   → Business logic / services (+ Azure Blob Storage)
-        └─ Ti.Waste.Data           → EF Core DbContext, repositories
-             ├─ Ti.Waste.Data.Infrastructure  → persistence infrastructure
-             └─ Ti.Waste.Entities             → domain & Identity entities
-                  └─ Ti.Waste                  → base domain / EF Core primitives
+API layer            → HTTP: controllers, auth, versioning, Swagger
+  └─ Business logic  → services (+ Azure Blob Storage)
+       └─ Data access             → EF Core DbContext, repositories
+            ├─ Persistence infrastructure
+            └─ Entities            → domain & Identity entities
+                 └─ Base domain    → shared EF Core primitives
 
-Supporting projects:
-  Ti.Waste.Email       → email composition/sending
-  Ti.Waste.Migrations  → EF Core migrations runner
-  Ti.Waste.SeedingApp  → data seeding
-  *.UnitTests / *.IntegrationTests → test suites
+Supporting projects (outside the request path):
+  Email service       → email composition / sending
+  Migrations runner   → applies EF Core migrations
+  Seeding tool        → reference/initial data
+  Unit / integration test suites
 ```
 
 ### Data access
@@ -180,10 +178,10 @@ Supporting projects:
 
 | Technology | Version | Purpose |
 | --- | --- | --- |
-| **Swashbuckle.AspNetCore** | 8.1 | Generates the OpenAPI/Swagger spec (`swagger.json`) |
+| **Swashbuckle.AspNetCore** | 8.1 | Generates the OpenAPI / Swagger specification |
 | **ASP.NET Core API Versioning** | 5.1 | URL/media-type API versioning |
 
-The generated `swagger.json` is the **single source of truth** for clients — see
+The generated OpenAPI specification is the **single source of truth** for clients — see
 [Shared API contract](#shared-api-contract).
 
 ### Observability
@@ -208,8 +206,8 @@ The generated `swagger.json` is the **single source of truth** for clients — s
 
 | Tool | Purpose |
 | --- | --- |
-| **Docker** (`docker-compose.yml`) | Containerization, local + deploy |
-| **PowerShell IaC scripts** (`src/infra`) | Automated Azure infrastructure deployment |
+| **Docker** / Docker Compose | Containerization, local + deploy |
+| **PowerShell IaC scripts** | Automated Azure infrastructure deployment |
 | **GitHub Actions** | CI/CD |
 
 ---
@@ -251,10 +249,10 @@ serving a marketing landing page and a markdown-driven blog, plus web access to 
 
 ### Hosting & deployment
 
-| Target | Config | Notes |
-| --- | --- | --- |
-| **Firebase Hosting** | `firebase.json`, `.firebaserc` | Primary hosting + Firebase Auth |
-| **Azure Static Web Apps** | `staticwebapp.config.json` | Alternative deploy target |
+| Target | Notes |
+| --- | --- |
+| **Firebase Hosting** | Primary hosting + Firebase Auth |
+| **Azure Static Web Apps** | Alternative deploy target |
 
 ---
 
@@ -269,14 +267,14 @@ generated from the backend's OpenAPI spec** — not hand-written HTTP calls:
 ASP.NET Core (Swashbuckle)
         │  produces
         ▼
-   openapi/swagger.json
-        │  openapi-generator-cli (typescript-angular)
+   OpenAPI specification
+        │  OpenAPI generator (typescript-angular)
         ▼
- projects/waste-api-client   ← imported by mobile app & web site
+ generated Angular API client   ← imported by mobile app & web site
 ```
 
 - Generator: **`@openapitools/openapi-generator-cli`** (`typescript-angular`)
-- Command: `npm run generate:api-client`
+- Invoked as a single command that regenerates the client from the specification.
 - Benefit: request/response types, enums, and services stay in lock-step with the backend;
   breaking changes surface at compile time.
 
