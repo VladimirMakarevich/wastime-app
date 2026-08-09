@@ -109,7 +109,7 @@ Wastime is built as three cooperating applications sharing one API contract (Ope
 
 ```text
 ┌─────────────────────┐        ┌─────────────────────┐
-│   Mobile app        │        │   Marketing web     │
+│   Mobile app        │        │  Web                │
 │  Ionic + Angular    │        │  Angular 21 (SSR)   │
 │  + Capacitor        │        │  landing + blog     │
 │  (iOS / Android)    │        │                     │
