@@ -71,7 +71,7 @@ Each product capability is an independent, lazily loaded feature area.
 | Feature area | What it does |
 | --- | --- |
 | **Home** | Entry points to every feature, with a customizable layout |
-| **Time tracking** | Meaningful vs wasted entries, topics with time, deadline and consistency goals, per-topic statistics and a pace projection |
+| **Time Diary** | Meaningful vs wasted entries, topics with time, deadline and consistency goals, per-topic statistics and a pace projection |
 | **Wasted-time guide** | A yes-or-no decision tree that helps decide whether a habit is really wasted time |
 | **Timers** | Activity stopwatches with pauses, session splitting and history; a session becomes a time entry |
 | **Time entry editing** | Manual creation and editing of time records |
@@ -163,7 +163,7 @@ Object mapping (ORM)      Lightweight, decorator-based mapping tailored for SQLi
       │  maps
 Domain entities           Plain models extending a common base entity
       │  persisted via
-Connection management     Opens/tracks the database connection
+Connection management     Opens and manages the database connection
       │  runs on
 Embedded SQLite driver    SQLCipher-encrypted native SQLite  /  WebAssembly SQLite in the browser
 ```
@@ -409,10 +409,10 @@ The full set of native capabilities is listed in
 
 ---
 
-## Example data flow: logging a time entry
+## Example data flow: adding a diary entry
 
 ```text
-1. The person logs time on the tracking screen (or stops a timer)
+1. The person adds an entry in the Time Diary (or stops a timer)
 2. The page's Sandbox calls the corresponding repository
 3. The repository maps the entity via the ORM and writes to the encrypted local database
       → soft-delete and version fields are maintained automatically

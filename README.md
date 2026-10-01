@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/assets/cover.png" alt="Wastime — Life Calendar &amp; Time Tracker. The app icon next to a phone showing one year of life as a grid of days." width="100%" />
+<img src="docs/assets/cover.png" alt="Wastime — Life Calendar &amp; Time Diary. The app icon next to a phone showing one year of life as a grid of days." width="100%" />
 
-### Time Tracker &amp; Life Calendar
+### Life Calendar &amp; Time Diary
 
 *See your time. Live on purpose.*
 
@@ -21,10 +21,11 @@
 
 ## What is Wastime?
 
-Most days feel full, yet by evening it is hard to say what they were spent on. **Wastime** is a
-time tracker and life calendar for anyone who wants to know where their hours really go. You log
-an activity, decide whether it was meaningful or wasted, and see what your ordinary weeks add up
-to over a year. Then you can step back and look at your whole life laid out in weeks.
+Most days feel full, yet by evening it is hard to say what they were spent on. **Wastime** is an
+offline life calendar and time diary for anyone who wants to know where their hours really go.
+You write down an activity, decide whether it was meaningful or wasted, and see what your
+ordinary weeks add up to over a year. Then you can step back and look at your whole life laid
+out in weeks.
 
 The app turns that vague feeling into a record and leaves the conclusions to you. Everything
 personal stays on your phone and works offline, with no account and no ads.
@@ -41,8 +42,8 @@ personal stays on your phone and works offline, with no account and no ads.
 
 <table>
   <tr>
-    <td><img src="docs/assets/phones/screenshot-1.webp" width="200" alt="Time entries split into Wasted and Meaningful, with a total and a ten-year projection of the current pace" /></td>
-    <td><img src="docs/assets/phones/screenshot-2.webp" width="200" alt="Log time — duration, topic, date and an optional note" /></td>
+    <td><img src="docs/assets/phones/screenshot-1.webp" width="200" alt="Time Diary entries split into Wasted and Meaningful, with a total and a ten-year projection of the current pace" /></td>
+    <td><img src="docs/assets/phones/screenshot-2.webp" width="200" alt="A new Time Diary entry — duration, topic, date and an optional note" /></td>
     <td><img src="docs/assets/phones/screenshot-3.webp" width="200" alt="Life calendar — one year of life as a grid of days with colored milestones" /></td>
     <td><img src="docs/assets/phones/screenshot-4.webp" width="200" alt="Topic overview — averages, totals and a projection over the next ten years" /></td>
   </tr>
@@ -60,14 +61,6 @@ personal stays on your phone and works offline, with no account and no ads.
 
 ## What's inside
 
-### ⏳ Time tracking
-
-Log time by hand or with a stopwatch that keeps its pauses and can split a long session into
-parts. Every entry belongs to a topic, and a topic can carry a time goal, a deadline or a
-consistency target. Statistics show totals, daily averages and your best days, weeks and months,
-with a chart of how meaningful and wasted time balance out and a projection of your pace over a
-year, or ten.
-
 ### 📅 Your life in weeks
 
 The life calendar draws your life as a grid of weeks, with the ones already lived filled in and
@@ -75,6 +68,16 @@ the rest still open. You can zoom into a single year as days or step out to whol
 Milestones mark the events that shaped you, and **Age Stories** gives each year of your life a
 page of its own. When you want to share it, the calendar can become a web page that is public,
 open only to people with the link, or visible to you alone.
+
+### ⏳ Time Diary
+
+The **Time Diary** is the everyday level, a diary of your hours. You write down where they go,
+by hand or with a stopwatch that keeps its pauses and can split a long session into parts, and
+sort each entry into Wasted or Meaningful yourself, since only you can say what was wasted.
+Every entry belongs to a topic, and a topic can carry a time goal, a deadline or a consistency
+target. Statistics show totals, daily averages and your best days, weeks and months, with a
+chart of how the two kinds of time balance out and a projection of your pace over a year, or
+ten.
 
 ### 💸 What a purchase costs in hours
 
@@ -118,8 +121,8 @@ the one thing that needs an account and a connection.
 
 | Principle | What it means in practice |
 | --- | --- |
-| **Your data stays on your device** | Time logs, calendars and calculations live in an encrypted database on the phone and work without a network or an account. A calendar leaves the device only when you publish it, and analytics runs only if you agree to it. |
-| **Built for short visits** | You open the app to log something or look at the picture, and then you put it away. There is nothing to scroll endlessly, no ads, and the only notifications are reminders you schedule yourself. |
+| **Your data stays on your device** | Diary entries, calendars and calculations live in an encrypted database on the phone and work without a network or an account. A calendar leaves the device only when you publish it, and analytics runs only if you agree to it. |
+| **Built for short visits** | You open the app to write something down or look at the picture, and then you put it away. There is nothing to scroll endlessly, no ads, and the only notifications are reminders you schedule yourself. |
 | **The conclusions are yours** | Wastime counts and draws. What a wasted hour means to you, and what to do about it, stays your decision. |
 
 ### Pricing
@@ -145,7 +148,7 @@ The app is in English.
 
 Wastime is three cooperating applications that share one API contract (OpenAPI). The mobile app
 is the product itself and runs fully on the device. The backend takes care of the few things
-that really need a server, such as publishing a calendar and keeping track of the subscription.
+that really need a server, such as publishing a calendar and checking the subscription.
 
 ```text
 ┌──────────────────────────┐            ┌──────────────────────────┐

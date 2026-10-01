@@ -13,7 +13,7 @@ legal and support pages.
 
 ## Role & goals
 
-The mobile app is where people track their time. The website's job is **discovery and trust**,
+The mobile app is where people keep their time diary. The website's job is **discovery and trust**,
 so it has to be fast, crawlable and easy to share, and it is where a published life calendar
 lives as a web page.
 
