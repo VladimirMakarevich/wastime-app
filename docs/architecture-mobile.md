@@ -1,11 +1,12 @@
 # Mobile App Architecture
 
-The Wastime mobile app is the **primary product**: a single Angular + Ionic codebase compiled
-to native **iOS** and **Android** binaries with Capacitor, and also runnable on the web. It is
-**offline-first** — every feature works with no network, and cloud sync is an optional layer
-on top.
+The Wastime mobile app is the **product itself**: one Angular + Ionic codebase compiled to
+native **iOS** and **Android** binaries with Capacitor, and also runnable in a browser for
+development and tests. It is **offline-first** — every personal feature works with no network,
+and the backend only comes in for publishing a life calendar, the subscription and in-app
+messages.
 
-> This document describes the architecture at the level of **layers, roles, and patterns**
+> This document describes the architecture at the level of **layers, roles and patterns**
 > rather than concrete file or module names. For versions and libraries, see
 > [tech-stack.md](tech-stack.md#mobile-app).
 
@@ -13,14 +14,14 @@ on top.
 
 ## Design principles
 
-The architecture is a direct expression of the product's promises:
+The architecture follows directly from what the product promises.
 
 | Product promise | Architectural consequence |
 | --- | --- |
-| **Works fully offline** | All reads/writes hit a local **encrypted embedded database**; the network is never on the critical path. |
-| **Privacy by default** | Cloud sync is opt-in and **consent-gated**; data leaves the device only after explicit user consent. |
+| **Works fully offline** | All reads and writes go to a local **encrypted embedded database**; the network is never on the critical path. |
+| **Privacy by default** | No account is needed; analytics and crash reporting stay off until the person agrees on a dedicated consent screen. |
 | **Your data, your rules** | Local **export/import**, soft-deletes, and full local ownership of the datastore. |
-| **A tool, not a life center** | Feature areas are independent and lazily loaded; the app stays small and fast. |
+| **Short, focused visits** | Feature areas are independent and lazily loaded, so the app starts fast and stays small. |
 
 ---
 
@@ -30,29 +31,29 @@ The app is organized into four layers with a strict top-to-bottom dependency dir
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
-│  Presentation                                                  │
-│    feature screens · shared UI components                      │
-│    mobile UI kit · router · charts · rich-text editor          │
+│  Presentation                                                 │
+│    routed pages · page-scoped Sandboxes · forms               │
+│    shared UI components · charts · rich-text editor           │
 └───────────────────────────┬───────────────────────────────────┘
                             │ services / event bus
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Application & cross-cutting                                   │
-│    app services · auth · HTTP interceptors · route guards      │
-│    internal event bus · i18n · remote config · theming · …     │
+│  Application & cross-cutting                                  │
+│    app services · auth · purchases · HTTP interceptors ·      │
+│    route guards · event bus · i18n · remote config · consent  │
 └───────────────────────────┬───────────────────────────────────┘
                             │ repositories
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Data                                                          │
-│    repository layer → object mapping (ORM) → domain entities   │
-│    schema migrations · soft-delete · connection management     │
-│    synchronization (optional, consent-gated — in progress)     │
+│  Data                                                         │
+│    repository layer → object mapping (ORM) → domain entities  │
+│    schema migrations · soft-delete · backup · connection mgmt │
+│    synchronization (designed, currently dormant)              │
 └───────────────────────────┬───────────────────────────────────┘
                             │ database driver
 ┌───────────────────────────┴───────────────────────────────────┐
-│  Persistence & native  (Capacitor bridge)                      │
-│    encrypted embedded SQLite (native) / WebAssembly SQLite (web)│
-│    secure storage · key-value preferences                      │
-│    device plugins: notifications, camera, filesystem, …        │
+│  Persistence & native  (Capacitor bridge)                     │
+│    SQLCipher-encrypted SQLite (native) / WebAssembly SQLite   │
+│    secure storage · key-value preferences                     │
+│    device plugins: notifications, camera, filesystem, …       │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -65,60 +66,95 @@ depends on the data layer, which depends on the database driver. Nothing lower r
 
 ### Feature areas
 
-Each product capability is an independent, lazily loaded feature area. They map one-to-one to
-the user-facing features:
+Each product capability is an independent, lazily loaded feature area.
 
 | Feature area | What it does |
 | --- | --- |
-| **Time tracking** | Meaningful vs Wasted spaces, topics and groups, quotas and forecasts |
-| **Timers** | A single active timer with pauses; sessions convert into time entries |
+| **Home** | Entry points to every feature, with a customizable layout |
+| **Time tracking** | Meaningful vs wasted entries, topics with time, deadline and consistency goals, per-topic statistics and a pace projection |
+| **Wasted-time guide** | A yes-or-no decision tree that helps decide whether a habit is really wasted time |
+| **Timers** | Activity stopwatches with pauses, session splitting and history; a session becomes a time entry |
 | **Time entry editing** | Manual creation and editing of time records |
-| **Life calendars** | Life in Weeks / Life in Days, with milestones and groups |
-| **Life-expectancy setup** | Country-based or manual life-expectancy configuration |
-| **Calculators** | The five calculators (Live, Wasted, Basic, 24H, Reverse) |
-| **Converter** | Money → Time conversion and accounts |
-| **Statistics** | Overviews, trends, and insights |
-| **Journey** | Roadmap / time-journey stories |
-| **Reflective questions** | Guided questions |
-| **Onboarding** | First-run setup flow |
-| **Shell** | Dashboard, profile/account, and sign-in |
+| **Calendars** | Life in weeks, a year in days and life in years, with milestones and milestone groups, Age Stories (a page per year of life) and an optional full-screen life timer |
+| **Calendar publishing** | Publishing a life calendar as a web page, with access settings and a history of published versions |
+| **Life expectancy** | Country life tables, a custom number, or a short ten-question calculator (with a BMI helper) |
+| **Calculators** | Five calculators — 24-hour, Planning, Wasted, Leftover and Basic — with saved results |
+| **Converter** | Money → time conversion based on income rates, with a history and the share of expected life it represents |
+| **Statistics** | Overview, time and life sections |
+| **Journey** | Eight chapters about time, with a reader, bookmarks and source notes |
+| **Questions** | Reflective prompts with saved answers |
+| **Onboarding** | A welcome screen, three short introductory paths and the consent step |
+| **Account** | Profile, settings and reminders, subscription, data backup, data privacy and account deletion, help, feedback, about |
+| **In-app messages** | A feed of messages from the Wastime team, read and unread |
+
+A developer sandbox for diagnostics exists in development builds only; a guard keeps it out of
+production.
+
+### Page patterns
+
+The presentation layer follows a small set of mandatory patterns, enforced in review and by lint.
+
+- **Standalone, OnPush components** with templates and styles in separate files.
+- **A page-scoped Sandbox per routed page.** Each root page provides its own facade at component
+  level. Business rules, data loading, persistence and calculations live in the Sandbox or the
+  services under it; components only bind state and forward user intent. Pages never share a
+  Sandbox — shared behavior moves down into core or data services.
+- **Signals for state.** Component and Sandbox state is held in Angular signals; observables are
+  bridged into signals instead of being subscribed to by hand.
+- **Typed form contexts.** Every form is a typed class that owns its form group, defaults, a
+  declarative validation schema and its intent methods. Error messages come from a central
+  validation service, never from templates.
+- **Predictable Android back button.** Handlers use named priority levels (inline overlay,
+  overlay guard, page, app-wide fallback). A handler that does not act passes the press on, and
+  views subscribe on enter and unsubscribe on leave, so an unsaved-changes prompt can run before
+  a sheet closes.
+- **Double-tap protection.** Actions that navigate, open overlays or delete are throttled.
+  Significant actions give haptic feedback, and destructive ones ask for confirmation.
+- **Overlay safety.** Every modal and picker show or dismiss is raced against a watchdog, so a
+  stuck animation cannot freeze the app.
+- **One header, one content area** per routed page, with a translucent header and full-screen
+  content.
 
 ### Shared UI
 
-A library of reusable presentational components — charts, color pickers, date/time selectors,
-image cropping, searchable selects, avatars, skeleton loaders, swipeable rows, and error/empty
-states. The UI is built on a **mobile component kit** with a **charting library** for
-visualization and a **rich-text editor** for notes.
+A library of reusable presentational components — charts, color pickers, date and time selectors,
+image cropping, searchable selects, avatars, skeleton loaders, swipeable rows, and error and empty
+states. The UI is built on the **Ionic component kit**, with **ECharts** for visualization and
+**Quill** for rich-text notes. The app currently ships a light theme only, built from design tokens.
 
 ---
 
 ## Application & cross-cutting layer
 
-This layer holds everything that is neither a screen nor persistence. It is organized by
-responsibility:
+This layer holds everything that is neither a screen nor persistence.
 
 | Area | Responsibility |
 | --- | --- |
-| **App services** | Cross-app concerns: theming / dark mode, connectivity, analytics, haptics, logging, localization, backup, remote configuration |
-| **Authentication** | Federated sign-in (Google / Apple), secure token storage backed by the platform keychain/keystore, and a guest mode |
-| **HTTP interceptors** | A request pipeline that attaches auth tokens, reacts to connectivity, and emits performance traces |
+| **App services** | Theming tokens, connectivity, analytics, haptics, logging, localization of dynamic text, backup, remote configuration, statistics math |
+| **Authentication** | Google and Apple sign-in through Firebase, tokens in secure storage backed by the platform keychain/keystore; most of the app needs no account at all |
+| **Purchases** | A thin wrapper over the RevenueCat SDK for offers, purchase and restore |
+| **Consent** | The single gate that decides whether analytics, performance monitoring and crash reporting may run |
+| **HTTP interceptors** | A request pipeline that attaches auth tokens, reacts to connectivity and emits performance traces |
 | **Internal event bus** | A typed publish/subscribe bus that decouples feature areas |
 | **Route guards** | Access control for navigation |
-| **Global state** | Small, app-wide runtime state (e.g. device configuration) |
-| **Angular building blocks** | Shared pipes, directives, form validators, and utilities |
+| **Angular building blocks** | Shared pipes, directives, form validators, a throttle decorator and utilities |
+
+Platform capabilities are always reached through these wrappers. Feature code never calls a raw
+Capacitor or Firebase plugin, and every service initializes explicitly and degrades gracefully
+when a capability is missing.
 
 ### Internal event bus
 
 Rather than wiring feature areas directly to one another, cross-cutting events flow through a
-typed **event bus**. This keeps features decoupled — for example, a timer completing can
-publish an event that statistics and synchronization consume independently.
+typed **event bus**. A timer completing, for example, can publish an event that statistics
+consume without the two areas knowing about each other.
 
 ---
 
 ## Data layer — the offline-first core
 
-This is the heart of the app. All application data lives in a **local embedded database**,
-accessed through a lightweight object-mapping layer and a repository abstraction.
+All application data lives in a **local embedded database**, accessed through a lightweight
+object-mapping layer and a repository abstraction.
 
 ```text
 Repository layer          One repository per aggregate; typed CRUD & queries
@@ -129,39 +165,43 @@ Domain entities           Plain models extending a common base entity
       │  persisted via
 Connection management     Opens/tracks the database connection
       │  runs on
-Embedded SQLite driver    Encrypted native SQLite  /  WebAssembly SQLite on the web
+Embedded SQLite driver    SQLCipher-encrypted native SQLite  /  WebAssembly SQLite in the browser
 ```
+
+### Encryption at rest
+
+On iOS and Android the database is encrypted with **SQLCipher**. The passphrase is random,
+generated once on first launch and kept in the platform's secure storage (Keychain on iOS,
+encrypted shared preferences on Android). The browser build used for development runs on
+WebAssembly SQLite without encryption.
 
 ### Object mapping (ORM)
 
-A small, decorator-based mapping layer (in the spirit of established ORMs) tailored for SQLite:
+A small, decorator-based mapping layer tailored for SQLite:
 
-- **Entity & column decorators** describe how models map to tables and columns.
-- A **row-versioning decorator** stamps each row with a version — the basis for optimistic
-  concurrency and conflict detection during sync.
-- **Value transformers** bridge type mismatches between JavaScript and SQLite — for example,
-  representing booleans as integers (SQLite has no boolean type) and normalizing null/undefined.
+- **Entity and column decorators** describe how models map to tables and columns.
+- A **row-versioning decorator** stamps each row with a version, the basis for conflict
+  detection once sync is enabled.
+- **Value transformers** bridge type mismatches between JavaScript and SQLite — booleans stored
+  as integers, normalized null/undefined, serialized dates.
 
-### Domain entities
+### Domain entities & repositories
 
-Domain models are mapped to tables and share a common base entity that carries cross-cutting
-fields (identity, timestamps, soft-delete and version markers). There is one entity per domain
-concept across the feature set — time records, topics, timers, milestones, calculator results,
-converter accounts, and so on.
+There is one entity per domain concept — time records, topics, timers, milestones, age stories,
+calculator results, converter rates, journey bookmarks, in-app messages and so on. They share a
+base entity that carries identity, timestamps and soft-delete and version markers.
 
-### Repositories
+Each aggregate is accessed through a repository built on a shared base. Alongside them:
 
-Each aggregate is accessed through a repository built on a shared base, exposing typed CRUD and
-query operations to the application layer. Cross-cutting data concerns live alongside:
-
-- **Soft-delete** — rows are tombstoned rather than physically removed, which is required for
-  correct synchronization and for undo.
-- **Raw datastore access** — a low-level path used for export/import and diagnostics.
+- **Soft-delete** — rows are tombstoned rather than physically removed, which keeps undo and
+  future sync correct.
+- **Backup** — a guided export writes selected data to a JSON file, and a guided import restores
+  it; both are covered by tests that run on a real SQLite engine.
 
 ### Schema migrations
 
-A versioned migration system evolves the local database as the app updates, so existing users'
-data is upgraded safely on device.
+The schema is defined by **versioned migrations** that run on the device during startup, so an
+app update upgrades the existing database in place, with progress shown on screen.
 
 ---
 
@@ -183,60 +223,132 @@ Bootstrap ─▶ Phase 1: Critical (blocking, progress UI) ─▶ app interactiv
 
 ### Bootstrap
 
-Before Angular starts, the app initializes the Firebase application, registers the web
-components it needs (carousel elements, and — on the web — the WebAssembly SQLite element), and
-configures the dependency-injection container: the HTTP client and its **interceptor chain**
-(connectivity → auth → crash reporting → performance), the router (with route preloading
-disabled to protect first paint), Firebase authentication (with native persistence), a global
-error handler, and the internal event bus. A lightweight app-initializer starts performance
-tracking.
+Before Angular starts, the app initializes Firebase, registers the web components it needs
+(carousel elements and, in the browser, the WebAssembly SQLite element) and configures dependency
+injection — the HTTP client with its **interceptor chain** (connectivity → auth → crash reporting
+→ performance), the router (with preloading disabled to protect first paint), Firebase
+authentication with native persistence, a global error handler and the event bus.
 
 ### Phase 1 — Critical initialization (blocking)
 
-The first phase brings the datastore up; it is the only part that gates the UI. It runs behind
-a dedicated **progress screen** and advances through well-defined, individually reported steps:
+The first phase brings the datastore up; it is the only part that gates the UI. It runs behind a
+dedicated **progress screen** and advances through individually reported steps:
 
 ```text
 starting → key-value store ready → database opened
         → schema migrations (init → running → complete) → ready
 ```
 
-- **Key-value store & query tracking** — bring up lightweight settings storage first.
-- **Database** — open the encrypted embedded database (on the web, set up the WebAssembly store
-  beforehand).
-- **Schema migrations** — apply any pending migrations while streaming progress to the screen;
-  a minimum display time avoids a distracting flash when migrations are fast.
-- **Launch-type detection** — the app classifies the launch as **first install**, **update**,
-  or **normal** (by comparing the stored version against the current one), which drives
-  onboarding vs. update flows.
+- **Key-value store** — lightweight settings storage comes up first.
+- **Database** — open the encrypted database (in the browser, set up the WebAssembly store first).
+- **Schema migrations** — apply pending migrations while streaming progress to the screen; a
+  minimum display time avoids a distracting flash when they are fast.
+- **Launch-type detection** — the launch is classified as **first install**, **update** or
+  **normal** by comparing the stored version with the current one, which decides between
+  onboarding and the regular flow.
 
 ### Progress reporting & stall detection
 
-A single **initialization-state service** holds the current step, percentage, and message as
-reactive signals, which the progress screen renders live. A **watchdog** runs alongside: on an
-interval it checks the time elapsed since the last progress tick and enforces a **per-step
-timeout** (falling back to a default). If a step makes no progress within its budget, the app
-raises a structured *stall* error and shows an **error / recovery panel** instead of hanging —
-so a slow or corrupt start is recoverable rather than fatal.
+An **initialization-state service** holds the current step, percentage and message as signals,
+and the progress screen renders them live. A **watchdog** runs alongside with a **per-step
+timeout** and an overall stall timeout. If a step makes no progress within its budget, the app
+raises a structured *stall* error and shows an **error / recovery panel** instead of hanging, so
+a slow or corrupt start is recoverable rather than fatal.
 
 ### Phase 2 — Secondary initialization (deferred)
 
-Once Angular reports the application is **stable**, a second phase runs **without blocking** the
-now-interactive UI: it loads device settings, resolves locale information, and initializes the
-remaining app services.
+Once Angular reports the application is **stable**, a second phase loads device settings,
+resolves locale information and initializes the remaining app services, without blocking the
+now-interactive UI.
 
 ### Phase 3 — Background initialization (idle)
 
-Non-critical work is deferred further still and scheduled during **idle time** (via the
-browser's idle-callback, with a timeout fallback). These are best-effort tasks — for example
-analytics initialization with retries — kept off the startup critical path entirely.
+Non-critical work is scheduled during **idle time**, with a timeout fallback. These are
+best-effort tasks — analytics initialization with retries, for example — kept off the startup
+critical path entirely.
 
 ### Why phased?
 
-Splitting startup this way keeps **time-to-interactive** short: only the datastore and its
-migrations gate the UI; everything else is pushed to after-stable or idle. The explicit step
-model, the progress screen, and the watchdog together make a normally opaque process
-**observable and resilient**.
+Only the datastore and its migrations gate the UI; everything else waits until the app is stable
+or idle. Together with the explicit step model, the progress screen and the watchdog, this keeps
+**time-to-interactive** short and makes a normally opaque process **observable and resilient**.
+
+---
+
+## Calendar publishing & the subscription
+
+Publishing a life calendar is the one feature that needs an account and a connection, and the
+only paid capability in the app.
+
+```text
+Life calendar (local) ──▶ publish settings ──▶ Backend API ──▶ web page on the Wastime website
+                              │                    │
+                       access level          quota check
+                  public · link · private   (free allowance or Wastime Pro)
+```
+
+- **Access levels.** *Public* calendars appear in the website's gallery and open for anyone with
+  the link; *link* calendars are unlisted and open only for someone who has the link; *private*
+  calendars open only for their owner after signing in on the site.
+- **History.** Each publication is recorded on the device, so earlier versions can be reviewed,
+  and the details screen copies or shares the link.
+- **Quota on the server.** The free plan allows three publications in any rolling 30 days, and
+  **Wastime Pro** removes the limit. The backend is the source of truth for both the quota and the
+  entitlement; the app only displays the remaining allowance and maps a refusal to a clear
+  message. Nothing on the client can unlock a paid capability by itself.
+- **Purchases** go through the **RevenueCat** SDK (monthly and yearly plans). RevenueCat informs
+  the backend through a signed webhook — see
+  [backend architecture](architecture-backend.md#subscriptions).
+- Calendars that are already published keep working whether or not a subscription is active.
+
+---
+
+## Notifications & in-app messages
+
+Two separate mechanisms, neither of them used for marketing:
+
+| Mechanism | How it works |
+| --- | --- |
+| **Reminders** | Daily or weekly local notifications that the person schedules in Settings, delivered by the OS with no server involved |
+| **In-app messages** | A feed pulled from the backend, cached in the local database, with read/unread state; it appears inside the app rather than as a push notification |
+
+---
+
+## Journey content pipeline
+
+The eight Journey chapters are authored as **Markdown** in the repository and compiled into JSON
+artifacts at build time — the same content-as-code approach the website uses for its blog.
+
+```text
+Chapter Markdown + chapter order + source registry
+        │
+        ▼
+Pure, unit-tested parser   → strict validation (fails the build)
+        │
+        ▼
+Committed JSON artifacts   → loaded by the in-app reader
+```
+
+The parser rejects a broken heading hierarchy or page numbering, text outside a page,
+unsupported Markdown, duplicate chapter keys, and footnotes that do not match the source
+registry. A check command rebuilds the artifacts in memory and fails if the committed ones are
+stale.
+
+---
+
+## Privacy & consent
+
+- **No account is required** for anything except publishing a calendar.
+- Analytics, performance monitoring and crash reporting are **off at the native level** until the
+  person answers on the consent screen at the end of onboarding. The answer can be changed any
+  time on the Data & Privacy screen.
+- A purpose is collected only when **three switches agree** — the person's answer, a remote kill
+  switch and the build configuration. None of them can turn collection on alone, and no stored
+  answer means no collection. Events from before the decision are buffered, then released or
+  dropped.
+- Personal content (notes, entries, personal data) never goes into analytics, logs or crash
+  reports — only product and technical events.
+- Account deletion is available in the app, including revoking Sign in with Apple.
 
 ---
 
@@ -245,14 +357,13 @@ model, the progress screen, and the watchdog together make a normally opaque pro
 ### Local-first writes
 
 Every user action writes to the local database **immediately**, and the UI updates from local
-state. There is no "saving to server" step on the critical path — the network is never
-required.
+state. There is no "saving to server" step on the critical path.
 
-### Sync engine (optional, consent-gated — *in progress*)
+### Sync engine (designed, currently dormant)
 
-An **outbox-based synchronization engine** provides optional multi-device sync. It is
-architected but **not yet enabled** in the shipping app, which is currently local-only. The
-design:
+An **outbox-based synchronization engine** for optional multi-device sync is architected on both
+the client and the server, but it is **switched off** in the shipping app, which keeps personal
+data local-only. The design:
 
 ```text
 Local write ──▶ Outbox (queue of pending changes)
@@ -271,43 +382,29 @@ Local write ──▶ Outbox (queue of pending changes)
                              → user-facing resolution
 ```
 
-The building blocks are designed to be **idempotent, versioned, conflict-aware, and
-consent-first**:
-
 | Concern | Approach |
 | --- | --- |
-| **Outbox** | Local changes are queued for push (outbox pattern) |
-| **Sync cursor** | Per-entity "last synced" position drives incremental pulls |
+| **Outbox** | Local changes are queued for push |
+| **Sync cursor** | A per-entity "last synced" position drives incremental pulls |
 | **Idempotency** | Idempotency keys ensure retried pushes never duplicate |
-| **Conflicts** | Version mismatches are detected, stored, and surfaced for user resolution |
-| **Consent gate** | Sync only runs after explicit user consent — the privacy boundary |
-| **Observability** | Activity log, metrics, and status reporting for sync |
-| **Off-thread** | Push/pull run in a background worker, never blocking the UI |
-
-This mirrors the product's privacy stance: nothing leaves the device implicitly.
-
-### Network awareness
-
-The app is connectivity-aware, so sync (when enabled) only activates on suitable connections
-and the UI degrades gracefully offline.
+| **Conflicts** | Version mismatches are detected, stored and surfaced for the person to resolve |
+| **Consent gate** | Sync would run only after explicit consent — the privacy boundary |
+| **Off-thread** | Push and pull run in a background worker, never blocking the UI |
 
 ---
 
 ## Native configuration
 
-Native behavior is declared through the Capacitor bridge. Highlights:
-
 | Concern | Effect |
 | --- | --- |
-| **Database encryption** | Enabled on both iOS and Android, with platform keychain-backed keys |
+| **Database encryption** | SQLCipher on iOS and Android, with a keychain/keystore-held passphrase |
 | **Native HTTP** | Requests use the platform's native HTTP layer |
-| **Keyboard** | Native resize behavior; style switches with the app's light/dark theme |
-| **Federated auth** | Google and Apple providers, with native sign-in |
-| **Crash reporting** | Enabled, including during development |
-| **Status bar** | Edge-to-edge layout with safe-area handling |
+| **Keyboard** | Native resize behavior |
+| **Federated auth** | Google and Apple providers with native sign-in |
+| **Crash reporting** | Available in all builds, gated by consent |
+| **Status bar & edges** | Edge-to-edge layout with safe-area handling on both platforms |
 
-The full set of native capabilities (notifications, camera, file picking, filesystem, share,
-haptics, keep-awake, in-app review) is listed in
+The full set of native capabilities is listed in
 [tech-stack.md](tech-stack.md#native-device-capabilities-capacitor-plugins).
 
 ---
@@ -315,29 +412,39 @@ haptics, keep-awake, in-app review) is listed in
 ## Example data flow: logging a time entry
 
 ```text
-1. User logs time in the tracking feature (or stops a timer)
-2. A feature service calls the corresponding repository
-3. The repository maps the entity via the ORM and writes to the local database
+1. The person logs time on the tracking screen (or stops a timer)
+2. The page's Sandbox calls the corresponding repository
+3. The repository maps the entity via the ORM and writes to the encrypted local database
       → soft-delete and version fields are maintained automatically
-4. The write is committed and the change is tracked
-5. The UI updates from local state (instant); statistics recompute
-6. (When sync is enabled) the change is enqueued in the outbox; a background
-   worker pushes it after consent and connectivity checks
+4. The write is committed
+5. Signals update the UI from local state; statistics and projections recompute
 ```
 
-Steps 1–5 are entirely local and synchronous with the user — the cloud (step 6) is additive
-and never blocks the experience.
+Every step is local. Nothing in this flow waits for, or talks to, a server.
+
+---
+
+## Testing
+
+| Tier | What it covers |
+| --- | --- |
+| **Unit** (Karma + Jasmine) | Around 240 spec files — statistics and projection math, calculators, converters, life expectancy, ORM transformers, validators, Sandboxes and services, on a fake database connection |
+| **Integration** | Backup round-trips and the migration schema, run on a real SQLite engine |
+| **End-to-end** (Playwright) | The backup export and re-import through a real file download and file picker |
+
+New or changed isolated business logic ships with specs as part of the definition of done.
 
 ---
 
 ## Build, versioning & release
 
-- **Web build → native sync:** the Angular build output is synced into the native iOS/Android
-  projects via the Capacitor CLI.
-- **API client generation:** a typed API client is generated from the backend's OpenAPI spec,
-  so the app and backend stay in lock-step.
-- **Automated versioning:** a pre-commit step bumps the version and syncs it into the native
+- **Web build → native sync.** The Angular build output is synced into the native iOS and Android
+  projects with the Capacitor CLI.
+- **API client generation.** A typed API client is generated from the backend's OpenAPI spec and
+  never edited by hand, so the app and backend stay in lock-step.
+- **Automated versioning.** A pre-commit step bumps the version and syncs it into the native
   Android and iOS project files.
-- **Store builds:** produced with the standard Android and iOS platform toolchains.
+- **Store builds** are produced with the standard Android and iOS toolchains and released through
+  Google Play and App Store Connect.
 
-See [tech-stack.md](tech-stack.md#native-tooling) for the toolchain details.
+See [tech-stack.md](tech-stack.md#native-tooling--quality) for the toolchain details.
