@@ -1,10 +1,13 @@
 # Mobile App Architecture
 
 The Wastime mobile app is the **product itself**: one Angular + Ionic codebase compiled to
-native **iOS** and **Android** binaries with Capacitor, and also runnable in a browser for
-development and tests. It is **offline-first** — every personal feature works with no network,
-and the backend only comes in for publishing a life calendar, the subscription and in-app
-messages.
+native **iOS** and **Android** binaries with Capacitor, released on the App Store and Google Play,
+and also runnable in a browser for development, tests and the help center's screenshots. It is
+**offline-first** — every personal feature works with no network, and the backend only comes in
+for publishing a life calendar, the subscription and in-app messages.
+
+Real installs carry years of personal data, so every update has to upgrade the database a device
+already has, and a backup exported by an earlier version has to import into the current one.
 
 > This document describes the architecture at the level of **layers, roles and patterns**
 > rather than concrete file or module names. For versions and libraries, see
@@ -71,24 +74,30 @@ Each product capability is an independent, lazily loaded feature area.
 | Feature area | What it does |
 | --- | --- |
 | **Home** | Entry points to every feature, with a customizable layout |
-| **Time Diary** | Meaningful vs wasted entries, topics with time, deadline and consistency goals, per-topic statistics and a pace projection |
+| **Time Diary** | Meaningful vs wasted entries, topics with time, deadline and consistency goals, per-topic statistics and a pace projection over a year, ten years or the rest of the expected life |
 | **Wasted-time guide** | A yes-or-no decision tree that helps decide whether a habit is really wasted time |
 | **Timers** | Activity stopwatches with pauses, session splitting and history; a session becomes a time entry |
 | **Time entry editing** | Manual creation and editing of time records |
-| **Calendars** | Life in weeks, a year in days and life in years, with milestones and milestone groups, Age Stories (a page per year of life) and an optional full-screen life timer |
-| **Calendar publishing** | Publishing a life calendar as a web page, with access settings and a history of published versions |
+| **Calendars** | Life in weeks, a year in days and life in years, with milestones and milestone groups, Age Stories (a page per year of life) and a life timer; milestones can be imported from a file an AI assistant builds from a copied prompt |
+| **Calendar publishing** | Publishing a life calendar as a web page, with access settings and a history of published versions; sign-in is asked for only at this step |
 | **Life expectancy** | Country life tables, a custom number, or a short ten-question calculator (with a BMI helper) |
 | **Calculators** | Five calculators — 24-hour, Planning, Wasted, Leftover and Basic — with saved results |
 | **Converter** | Money → time conversion based on income rates, with a history and the share of expected life it represents |
 | **Statistics** | Overview, time and life sections |
 | **Journey** | Eight chapters about time, with a reader, bookmarks and source notes |
-| **Questions** | Reflective prompts with saved answers |
+| **Questions** | Reflective prompts with saved answers, hints behind a tap-to-reveal, and a prompt to talk a question through in an AI chat of your choice |
 | **Onboarding** | A welcome screen, three short introductory paths and the consent step |
-| **Account** | Profile, settings and reminders, subscription, data backup, data privacy and account deletion, help, feedback, about |
+| **Account** | Profile, settings and reminders, subscription, data backup, data privacy and account deletion, help that links to the full guides on the website, feedback, about |
 | **In-app messages** | A feed of messages from the Wastime team, read and unread |
 
 A developer sandbox for diagnostics exists in development builds only; a guard keeps it out of
 production.
+
+AI features never send data from the app. The app copies a prompt to the clipboard or opens an AI
+chat in the browser, and whatever comes back enters the app only as a file the person imports.
+
+Printing a life calendar is not part of the app: it happens in the print constructor on the
+website, from a calendar the person has published. See [Print architecture](architecture-print.md).
 
 ### Page patterns
 
@@ -114,6 +123,10 @@ The presentation layer follows a small set of mandatory patterns, enforced in re
   stuck animation cannot freeze the app.
 - **One header, one content area** per routed page, with a translucent header and full-screen
   content.
+- **A native look on each platform.** Ionic renders its iOS look on iPhone and Material Design on
+  Android. Pages with a horizontal swiper, swipe-to-delete rows or an unsaved-changes question
+  switch off the iOS edge swipe-back while they are shown, so a drag from the edge cannot leave
+  the page by accident or skip the question.
 
 ### Shared UI
 
@@ -299,6 +312,11 @@ Life calendar (local) ──▶ publish settings ──▶ Backend API ──▶
 - **Purchases** go through the **RevenueCat** SDK (monthly and yearly plans). RevenueCat informs
   the backend through a signed webhook — see
   [backend architecture](architecture-backend.md#subscriptions).
+- **Subscribing does not require an account.** While signed out, RevenueCat keeps the purchase on
+  a stable id of this install; signing in later and restoring carries it onto the account. The
+  paywall offers an optional sign-in for people who already subscribe on another device.
+- **Sign-in is asked for only when publishing**, and the person's consent to publishing is
+  remembered, so the question is not repeated each time.
 - Calendars that are already published keep working whether or not a subscription is active.
 
 ---
@@ -428,9 +446,10 @@ Every step is local. Nothing in this flow waits for, or talks to, a server.
 
 | Tier | What it covers |
 | --- | --- |
-| **Unit** (Karma + Jasmine) | Around 240 spec files — statistics and projection math, calculators, converters, life expectancy, ORM transformers, validators, Sandboxes and services, on a fake database connection |
+| **Unit** (Karma + Jasmine) | Around 280 spec files — statistics and projection math, calculators, converters, life expectancy, ORM transformers, validators, Sandboxes and services, on a fake database connection |
 | **Integration** | Backup round-trips and the migration schema, run on a real SQLite engine |
-| **End-to-end** (Playwright) | The backup export and re-import through a real file download and file picker |
+| **End-to-end** (Playwright) | The backup export and re-import through a real file download and file picker, rejected backups, calendar dates and milestone ranges |
+| **Guide capture** (Playwright) | Runs the web build in its iPhone look with seeded data and a frozen clock, and captures every screenshot of the website's help center, so a guide can be recaptured after a change |
 
 New or changed isolated business logic ships with specs as part of the definition of done.
 
@@ -445,6 +464,7 @@ New or changed isolated business logic ships with specs as part of the definitio
 - **Automated versioning.** A pre-commit step bumps the version and syncs it into the native
   Android and iOS project files.
 - **Store builds** are produced with the standard Android and iOS toolchains and released through
-  Google Play and App Store Connect.
+  Google Play and App Store Connect. Release notes for both stores are written from the Git
+  history of the release, leaving out anything a person cannot reach in a production build.
 
 See [tech-stack.md](tech-stack.md#native-tooling--quality) for the toolchain details.

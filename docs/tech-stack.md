@@ -1,21 +1,23 @@
 # Technology Stack
 
 This document is the full, versioned breakdown of the technologies behind **Wastime**, with the
-reasoning behind the key choices. The three architecture documents build on it:
+reasoning behind the key choices. The architecture documents build on it:
 
 - [Mobile app architecture](architecture-mobile.md)
 - [Backend architecture](architecture-backend.md)
 - [Website architecture](architecture-web.md)
+- [Print architecture](architecture-print.md)
 
-Wastime is delivered as **three cooperating applications** that share a single, generated API
-contract, with an operator portal in development:
+Wastime is delivered as **four cooperating applications** that share a generated API contract,
+plus a print renderer service behind the API:
 
 | Application | Role | Core technology |
 | --- | --- | --- |
 | **Mobile app** | The product itself (iOS &amp; Android), fully offline | Ionic + Angular + Capacitor |
-| **Backend API** | Calendar publishing, the public gallery, subscriptions, in-app messages, moderation | ASP.NET Core 9 |
-| **Website** | Landing, feature pages, blog, published calendars, account area | Angular 21 with SSR / prerendering |
-| **Admin portal** *(in development)* | Moderation and in-app messages for the operator | Angular 22 + Angular Material |
+| **Backend API** | Calendar publishing, the public gallery, print files, subscriptions, in-app messages, moderation | ASP.NET Core 9 |
+| **Website** | Landing, feature pages, help center, blog, published calendars, print constructor, account area | Angular 21 with SSR / prerendering |
+| **Admin portal** | Moderation, in-app messages and the inbox, for the operator | Angular 22 + Angular Material |
+| **Print renderer** | Turns a print sheet into PDF and page pictures; called only by the API | Node 22 + Gotenberg (headless Chromium) |
 
 > Versions below reflect the projects' current manifests. Minor and patch versions move over
 > time; the major versions and the architectural choices are the stable part of this document.
@@ -37,8 +39,9 @@ contract, with an operator portal in development:
 | **On-device store** | SQLite with SQLCipher (Capacitor) / sql.js (browser) | plugin 8 · sql.js 1.14 |
 | **Auth** | Firebase Authentication, ID tokens validated by the API | Firebase JS SDK 12 · FirebaseAdmin 3.2 |
 | **Subscriptions** | RevenueCat | Capacitor SDK 12 |
+| **Print rendering** | Shared TypeScript sheet generator + Gotenberg | generator 3 · Gotenberg 8.37 |
 | **Cloud** | Microsoft Azure | — |
-| **API contract** | OpenAPI / Swagger → generated Angular client | OpenAPI 3 |
+| **API contract** | OpenAPI / Swagger → generated Angular clients, one document per audience | OpenAPI 3 |
 | **CI/CD** | GitHub Actions + Docker | — |
 
 ---
@@ -122,7 +125,7 @@ The database passphrase is random, generated on first launch and held in secure 
 | Android Studio / Gradle, Xcode | Platform builds and store submission |
 | `@openapitools/openapi-generator-cli` | Generates the typed API client |
 | Karma + Jasmine | Unit and integration specs |
-| Playwright | End-to-end tests of the backup round-trip |
+| Playwright | End-to-end tests (backup round-trip and rejection, calendar dates) and the capture suite for the help center's screenshots |
 | ESLint 9 + `@angular-eslint` | Linting with strict rules (explicit access modifiers and return types) |
 | Custom version scripts | Bump the version on commit and sync it into the native Android and iOS projects |
 
@@ -208,16 +211,19 @@ The generated OpenAPI specification is the **single source of truth** for client
 | --- | --- |
 | **Azure App Service** | Hosts the API (Docker, Linux) |
 | **Azure Database for PostgreSQL — Flexible Server** | Primary datastore |
-| **Azure Blob Storage** | Private, encrypted file storage |
-| **Azure Key Vault** | Secrets and auto-generated passwords |
-| **Application Insights + Log Analytics** | Monitoring, telemetry, availability test and alerts |
+| **Azure Blob Storage** | Private, encrypted file storage; a separate account for print files |
+| **Azure Container Apps** | Hosts the print renderer — consumption plan, scales to zero |
+| **Azure Container Registry** | The renderer's images |
+| **Azure Key Vault** | Secrets and auto-generated passwords, authorized by RBAC role assignments |
+| **Application Insights + Log Analytics** | Monitoring, telemetry, availability test, alerts and security audit logs |
 
 ### Backend tooling & tests
 
 | Tool | Purpose |
 | --- | --- |
-| **Bicep** | Infrastructure as code for the whole Azure footprint, monitoring included |
+| **Bicep** | Infrastructure as code for the whole Azure footprint, monitoring and security logs included |
 | **PowerShell scripts** | Infrastructure deployment, secret provisioning, password rotation |
+| **Release preflight script** | A read-only check of what a production release would ship and what must happen first |
 | **Docker** / Docker Compose | Containerization, local and deployed |
 | **GitHub Actions** | Build, test, staging and production deploys, showcase seeding |
 | **xUnit, Moq, MockQueryable, FluentAssertions** | Unit and integration tests |
@@ -228,7 +234,7 @@ The generated OpenAPI specification is the **single source of truth** for client
 ## Website
 
 The website is an **Angular 21** application **prerendered** at build time, with a Markdown-driven
-blog and pages that load API data in the browser.
+blog and help center, a print constructor, and pages that load API data in the browser.
 
 ### Framework & rendering
 
@@ -242,8 +248,9 @@ blog and pages that load API data in the browser.
 
 | Technology | Version | Purpose |
 | --- | --- | --- |
-| **Bootstrap** | 5.3 | Layout and components |
+| **Bootstrap** | 5.3 | Layout and components, light and dark themes |
 | **`@ng-bootstrap/ng-bootstrap`** | 20 | Angular Bootstrap widgets |
+| **Angular CDK** | 21 | Clipboard, e.g. copying the print guide's line for a copy shop |
 | **`bootstrap-icons`** | 1.13 | Icon set |
 | **Quill** | 2 | Rendering a year's Age Stories on a published calendar |
 | **AOS** | 2.3 | Animate-on-scroll effects |
@@ -258,8 +265,8 @@ blog and pages that load API data in the browser.
 | **`gray-matter`** | 4 | Parses front-matter from Markdown posts |
 | **`marked`** | 17 | Markdown → HTML rendering |
 | **`canvas`** | 3 | Generates Open Graph images for blog posts at build time |
-| **`sharp`** | 0.35 | Cuts landing showcase images out of the app's store screenshots |
-| Custom Node scripts + pure tool modules | — | Validate and build content, prerender routes, generate sitemaps, RSS, redirects and OG images |
+| **`sharp`** | 0.35 | Cuts landing showcase images out of the app's store screenshots and writes the help center's screenshots as webp |
+| Custom Node scripts + pure tool modules | — | Validate and build the blog and help content, prerender routes, generate sitemaps, RSS, `llms.txt`, redirects and OG images |
 
 ### Hosting & deployment
 
@@ -274,22 +281,71 @@ blog and pages that load API data in the browser.
 | --- | --- |
 | ESLint, Stylelint, Prettier | Linting and formatting |
 | Karma + Jasmine | Unit tests in random order, with a coverage ratchet |
-| Node's built-in test runner | Tests for the build-time pipeline modules |
+| Node's built-in test runner | Tests for the build-time pipeline modules and the built sheet generator |
 | Husky | Pre-commit lint and format |
 
 ---
 
-## Admin portal *(in development)*
+## Print
 
-An operator-facing web app for moderating published calendars and managing in-app messages.
+Printing a life calendar spans the website, the API and a renderer service. See
+[Print architecture](architecture-print.md).
+
+### Sheet generator (shared by the website and the renderer)
 
 | Technology | Version | Purpose |
 | --- | --- | --- |
-| **Angular** + **Angular Material** | 22 | Application framework and UI; no SSR, everything is behind sign-in |
+| **TypeScript**, ES2022, no DOM, no framework | 5.9 | A sheet as a pure function from a snapshot and settings to HTML |
+| **Designs as data** | — | A manifest and token-only CSS per design; the settings panel is built from the manifest |
+| **Outfit**, **Inter** (static weights, via Fontsource) | 300 / 400 / 500 | Fonts embedded in the PDF without Type 3 conversion |
+| **SHA-256 digests** of a fixed set of sheets | — | Prove the browser build and the Node build produce identical output |
+| **Private package registry** (GitHub Packages) | — | Publishes the generator on a version tag after lint and tests |
+
+### Print constructor (website)
+
+| Technology | Purpose |
+| --- | --- |
+| **Angular signals** | Constructor state, undo history and debounced preview requests |
+| **Sandboxed iframe** | Shows the generated sheet with scripts disabled |
+| **Browser local storage** | Up to 30 sheets with settings and the person's own text — no birth date, no milestones |
+| **Generated API client** | Allowance, generation, file links, the history of sets |
+
+### Renderer service
+
+| Technology | Version | Purpose |
+| --- | --- | --- |
+| **Node.js** + TypeScript | 22 | A single render endpoint guarded by a key |
+| **Gotenberg** (headless Chromium) | 8.37, pinned by digest | PDF of every page, a 300 dpi picture of each page, the guide PDF |
+| **Docker** | — | Two images: the service and a locked-down Gotenberg |
+| **Azure Container Apps** + **Container Registry** | — | Hosting with scale to zero; images pulled with a managed identity |
+| **Node's built-in test runner**, `pdfjs-dist` | — | Tests against a real Gotenberg, including embedded-font checks of the PDF |
+
+### Print slice of the API
+
+| Technology | Purpose |
+| --- | --- |
+| **ASP.NET Core 9** command/query handlers | Allowance, generation, file links, history, delete |
+| **Typed `HttpClient`** | Calls the renderer and reads its multipart response |
+| **Azure Blob Storage** (`Azure.Storage.Blobs`) | A dedicated account; short-lived read-only SAS links over HTTPS |
+| **Hosted service** | Clears visitor identities after two days |
+| **Options from configuration** | Limits and the render ceiling, changeable with a restart |
+
+---
+
+## Admin portal
+
+An operator-facing web app for moderating published calendars, managing in-app messages and
+reading the inbox of feedback, account deletions and error reports. It is deployed to production
+behind Google sign-in and a role check.
+
+| Technology | Version | Purpose |
+| --- | --- | --- |
+| **Angular** + **Angular Material** | 22 | Application framework and UI; no SSR, everything is behind sign-in; usable on a phone |
 | **TypeScript** | 6.0 | Language |
-| **Firebase JS SDK** | — | Operator sign-in, with roles checked by the API |
-| **Generated API client** | — | The same OpenAPI-driven client approach as the other apps |
+| **Firebase JS SDK** | 12 | Operator sign-in, with roles checked by the API |
+| **Generated API client** | — | Built from the API's admin OpenAPI document |
 | **Vitest** | 5 | Unit tests |
+| **GitHub Actions** | — | Lint, build and tests on every push; a manual run deploys the tested build |
 
 ---
 
@@ -298,16 +354,16 @@ An operator-facing web app for moderating published calendars and managing in-ap
 ### Shared API contract
 
 Every client talks to the backend through a **typed Angular client generated from the backend's
-OpenAPI spec** — never hand-written HTTP calls:
+OpenAPI documents** — never hand-written HTTP calls:
 
 ```text
 ASP.NET Core (Swashbuckle)
-        │  produces
+        │  produces one document per audience
         ▼
-   OpenAPI specification
+   OpenAPI documents: mobile · web · admin
         │  OpenAPI generator (typescript-angular)
         ▼
- generated Angular API client   ← imported by the mobile app, website and admin portal
+ generated Angular API clients   ← one in the mobile app, the website and the admin portal each
 ```
 
 - Generator: **`@openapitools/openapi-generator-cli`** (`typescript-angular`).
@@ -327,8 +383,8 @@ Analytics, Crashlytics, Performance and Remote Config, all behind the consent ga
 | --- | --- |
 | **Linting** | ESLint + `@angular-eslint` (strict rules), Stylelint (SCSS) |
 | **Formatting** | Prettier |
-| **Testing (front)** | Karma + Jasmine, Playwright (mobile e2e), Vitest (admin portal) |
-| **Testing (back)** | xUnit unit and integration suites |
+| **Testing (front)** | Karma + Jasmine, Playwright (mobile e2e and help screenshots), Vitest (admin portal) |
+| **Testing (back)** | xUnit unit and integration suites; Node tests for the print renderer |
 | **Documentation** | Markdown context linting in CI across the repositories |
 | **Versioning** | Automated semver bump on commit; synced into the native Android/iOS projects |
 | **CI/CD** | GitHub Actions in every repository |
@@ -353,6 +409,15 @@ Analytics, Crashlytics, Performance and Remote Config, all behind the consent ga
   class of front/back drift bugs and makes API changes visible at compile time.
 - **Prerendered website with API shells.** Static HTML keeps the site fast and crawlable, while
   pages backed by live data prerender as a shell and fetch in the browser.
+- **One sheet generator for preview and file.** The print preview runs in the browser and the file
+  is rendered on the server by the same package at the same version, checked by digests, so what
+  the person approved is what they download. The server is involved only for the final files.
+- **Gotenberg in its own container.** Rendering PDFs needs a full Chromium; keeping it in a
+  separate, scale-to-zero container with a pinned image keeps the API small and the layout stable
+  from one release to the next.
+- **Screenshots captured by code.** The help center's screenshots come from a Playwright suite
+  that drives the app's web build with seeded data, so seventy guides can follow the app as it
+  changes.
 - **Security by default on the backend.** Authenticated-by-default endpoints, Managed Identity,
   Key Vault with auto-generated secrets, private Blob Storage and OWASP headers keep secrets out
   of code and mistakes out of production.

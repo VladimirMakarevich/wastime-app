@@ -6,14 +6,16 @@
 
 *See your time. Live on purpose.*
 
+[![Download on the App Store](https://img.shields.io/badge/App%20Store-get%20the%20app-0d96f6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/wastime/id6751753018)
 [![Get it on Google Play](https://img.shields.io/badge/Google%20Play-get%20the%20app-34a853?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.wastime.waste.app)
-[![App Store](https://img.shields.io/badge/App%20Store-coming%20soon-555?style=for-the-badge&logo=apple&logoColor=white)](#download)
 [![Website](https://img.shields.io/badge/wastime.app-website-e8446a?style=for-the-badge)](https://wastime.app/)
+[![Product Hunt](https://img.shields.io/badge/Product%20Hunt-Wastime-da552f?style=for-the-badge&logo=producthunt&logoColor=white)](https://www.producthunt.com/products/wastime)
 
 `Offline-first` · `No account needed` · `No ads` · `Free core`
 
 [What it is](#what-is-wastime) · [Screenshots](#screenshots) · [Features](#whats-inside) ·
-[Principles](#principles) · [Architecture](#how-its-built) · [Tech stack](#technology-stack)
+[Principles](#principles) · [Download](#download) · [Architecture](#how-its-built) ·
+[Tech stack](#technology-stack)
 
 </div>
 
@@ -25,7 +27,7 @@ Most days feel full, yet by evening it is hard to say what they were spent on. *
 offline life calendar and time diary for anyone who wants to know where their hours really go.
 You write down an activity, decide whether it was meaningful or wasted, and see what your
 ordinary weeks add up to over a year. Then you can step back and look at your whole life laid
-out in weeks.
+out in weeks — on the screen, or printed and pinned to a wall.
 
 The app turns that vague feeling into a record and leaves the conclusions to you. Everything
 personal stays on your phone and works offline, with no account and no ads.
@@ -66,8 +68,17 @@ personal stays on your phone and works offline, with no account and no ads.
 The life calendar draws your life as a grid of weeks, with the ones already lived filled in and
 the rest still open. You can zoom into a single year as days or step out to whole years.
 Milestones mark the events that shaped you, and **Age Stories** gives each year of your life a
-page of its own. When you want to share it, the calendar can become a web page that is public,
-open only to people with the link, or visible to you alone.
+page of its own. If your dates are already written down somewhere, an AI assistant of your choice
+can turn them into a file the app imports. When you want to share the calendar, it can become a
+web page that is public, open only to people with the link, or visible to you alone.
+
+### 🖨️ Your life calendar on paper
+
+The [print constructor](https://wastime.app/print) on the website turns the calendar you published
+into a sheet for a home printer or a copy shop. You choose the design, the colors, the paper size
+(A4, Letter, A3 or Tabloid) and what the legend lists, and the preview on screen is the file you
+get. The download is a PDF of every page, a 300 dpi picture of each page and a short printing
+guide with a ruler check for the scale. An empty grid prints without an account.
 
 ### ⏳ Time Diary
 
@@ -76,8 +87,8 @@ by hand or with a stopwatch that keeps its pauses and can split a long session i
 sort each entry into Wasted or Meaningful yourself, since only you can say what was wasted.
 Every entry belongs to a topic, and a topic can carry a time goal, a deadline or a consistency
 target. Statistics show totals, daily averages and your best days, weeks and months, with a
-chart of how the two kinds of time balance out and a projection of your pace over a year, or
-ten.
+chart of how the two kinds of time balance out and a projection of your pace over a year, ten
+years or the rest of your expected life.
 
 ### 💸 What a purchase costs in hours
 
@@ -107,13 +118,19 @@ the first question.
 
 **Journey** is eight chapters about time and the thinking behind the app, and it reopens where you
 left off. **Questions** offers prompts about life, death, meaning and time, and keeps your
-answers. A short yes-or-no guide helps when you are unsure whether a habit really belongs on the
-wasted side.
+answers; a question can also go to an AI chat as a prompt that helps you reach your own answer
+rather than handing you one. A short yes-or-no guide helps when you are unsure whether a habit
+really belongs on the wasted side.
 
 ### 🔒 Yours to keep
 
-A local backup exports your data to a file you can restore later. Publishing a life calendar is
-the one thing that needs an account and a connection.
+A local backup exports your data to a file you can restore later. Publishing a life calendar, and
+printing it, are the only things that need an account and a connection.
+
+### ❓ Help
+
+The [help center](https://wastime.app/help) has about seventy step-by-step guides, with a
+screenshot of the iPhone screen at every step.
 
 ---
 
@@ -128,7 +145,12 @@ the one thing that needs an account and a connection.
 ### Pricing
 
 Publishing your life calendar is free three times in any 30 days. **Wastime Pro** removes that
-limit. Everything else in the app is free and stays on your device.
+limit, and you can subscribe without creating an account.
+
+Print files of your own calendar are free until December 1, 2026, up to ten in any 30 days; the
+website states the conditions after that date. An empty grid stays free.
+
+Everything else in the app is free and stays on your device.
 
 ---
 
@@ -136,9 +158,10 @@ limit. Everything else in the app is free and stays on your device.
 
 | | |
 | --- | --- |
+| 🍏 **App Store (iPhone)** | [apps.apple.com/app/wastime/id6751753018](https://apps.apple.com/app/wastime/id6751753018) |
 | 🤖 **Google Play (Android)** | [play.google.com/store/apps/details?id=com.wastime.waste.app](https://play.google.com/store/apps/details?id=com.wastime.waste.app) |
-| 🍏 **App Store (iOS)** | Coming soon |
-| 🌐 **Website** | [wastime.app](https://wastime.app/) — feature pages, blog and published life calendars |
+| 🌐 **Website** | [wastime.app](https://wastime.app/) — feature pages, help center, blog, print constructor and published life calendars |
+| 🚀 **Product Hunt** | [producthunt.com/products/wastime](https://www.producthunt.com/products/wastime) — launched October 28, 2026 |
 
 The app is in English.
 
@@ -146,39 +169,46 @@ The app is in English.
 
 ## How it's built
 
-Wastime is three cooperating applications that share one API contract (OpenAPI). The mobile app
-is the product itself and runs fully on the device. The backend takes care of the few things
-that really need a server, such as publishing a calendar and checking the subscription.
+Wastime is four cooperating applications that share one API contract (OpenAPI), plus a print
+renderer behind the API. The mobile app is the product itself and runs fully on the device. The
+backend takes care of the few things that really need a server, such as publishing a calendar,
+rendering print files and checking the subscription.
 
 ```text
-┌──────────────────────────┐            ┌──────────────────────────┐
-│  Mobile app              │            │  Website                 │
-│  Ionic · Angular ·       │            │  Angular SSR / prerender │
-│  Capacitor (iOS/Android) │            │  landing · blog ·        │
-│  encrypted SQLite        │            │  calendar gallery        │
-└────────────┬─────────────┘            └────────────┬─────────────┘
-             │   HTTPS · generated OpenAPI client     │
-             │   Firebase ID token                    │
-             ▼                                        ▼
-        ┌──────────────────────────────────────────────────┐
-        │  Backend API — ASP.NET Core 9                    │
-        │  publishing · gallery · subscriptions ·          │
-        │  in-app messages · moderation                    │
-        └──────────────────────────┬───────────────────────┘
-                                   │
-        ┌──────────────────────────┴───────────────────────┐
-        │  Azure — PostgreSQL · Blob Storage · Key Vault · │
-        │          Application Insights                    │
-        │  Firebase — Auth · Analytics · Crashlytics · …   │
-        │  RevenueCat — subscriptions                      │
-        └──────────────────────────────────────────────────┘
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│  Mobile app         │   │  Website            │   │  Admin portal       │
+│  Ionic · Angular ·  │   │  Angular SSR /      │   │  Angular ·          │
+│  Capacitor          │   │  prerender · help · │   │  Angular Material   │
+│  encrypted SQLite   │   │  print constructor  │   │  moderation · inbox │
+└──────────┬──────────┘   └──────────┬──────────┘   └──────────┬──────────┘
+           │   HTTPS · generated OpenAPI clients · Firebase ID token
+           ▼                         ▼                         ▼
+    ┌────────────────────────────────────────────────────────────────┐
+    │  Backend API — ASP.NET Core 9                                  │
+    │  publishing · gallery · print files · subscriptions ·          │
+    │  in-app messages · moderation                                  │
+    └──────────────┬──────────────────────────────────┬──────────────┘
+                   │                                  │  sheet to render
+                   │                                  ▼
+                   │                   ┌──────────────────────────────┐
+                   │                   │  Print renderer              │
+                   │                   │  Node · shared generator ·   │
+                   │                   │  Gotenberg (Chromium)        │
+                   │                   └──────────────────────────────┘
+    ┌──────────────┴───────────────────────────────────┐
+    │  Azure — PostgreSQL · Blob Storage · Key Vault · │
+    │          Container Apps · Application Insights   │
+    │  Firebase — Auth · Analytics · Crashlytics · …   │
+    │  RevenueCat — subscriptions                      │
+    └──────────────────────────────────────────────────┘
 ```
 
 | Document | Contents |
 | --- | --- |
 | 📱 [Mobile app architecture](docs/architecture-mobile.md) | Layers and page patterns, the offline-first data core, phased startup, content pipeline, subscriptions, native configuration |
-| 🔧 [Backend architecture](docs/architecture-backend.md) | Layered .NET design, Firebase-based auth, calendar publishing, RevenueCat integration, Azure infrastructure, release flow |
-| 🌐 [Website architecture](docs/architecture-web.md) | Angular SSR and prerendering, the Markdown blog pipeline, SEO artifacts, hosting |
+| 🔧 [Backend architecture](docs/architecture-backend.md) | Layered .NET design, Firebase-based auth, calendar publishing, print files, RevenueCat integration, moderation, Azure infrastructure, release flow |
+| 🌐 [Website architecture](docs/architecture-web.md) | Angular SSR and prerendering, the Markdown blog and help center pipelines, the print constructor, SEO artifacts, hosting |
+| 🖨️ [Print architecture](docs/architecture-print.md) | The shared sheet generator, the constructor in the browser, the print API, the Node + Gotenberg renderer and its infrastructure |
 | 🧱 [Technology stack](docs/tech-stack.md) | The full stack with versions and the reasoning behind the key choices |
 
 ---
@@ -189,10 +219,12 @@ that really need a server, such as publishing a calendar and checking the subscr
 | --- | --- |
 | **Mobile** | Ionic 8, Angular 21, Capacitor 8, TypeScript 5.9, encrypted SQLite, ECharts 6 |
 | **Backend** | ASP.NET Core 9 (C#), Entity Framework Core 9, PostgreSQL |
-| **Website** | Angular 21 with SSR / prerendering, Bootstrap 5, Markdown-driven blog |
-| **Cloud** | Microsoft Azure — App Service, PostgreSQL Flexible Server, Blob Storage, Key Vault, Application Insights |
+| **Website** | Angular 21 with SSR / prerendering, Bootstrap 5, Markdown-driven blog and help center |
+| **Print** | A shared TypeScript sheet generator in the browser and on the server, Node 22, Gotenberg 8 (headless Chromium) |
+| **Admin portal** | Angular 22, Angular Material, Vitest |
+| **Cloud** | Microsoft Azure — App Service, Container Apps, PostgreSQL Flexible Server, Blob Storage, Key Vault, Application Insights |
 | **Platform services** | Firebase (Auth, Analytics, Crashlytics, Performance, Remote Config), RevenueCat |
-| **Delivery** | GitHub Actions, Docker, Azure Static Web Apps behind Cloudflare |
+| **Delivery** | GitHub Actions, Docker, Bicep, Azure Static Web Apps behind Cloudflare |
 
 See [docs/tech-stack.md](docs/tech-stack.md) for the full breakdown.
 
@@ -200,13 +232,19 @@ See [docs/tech-stack.md](docs/tech-stack.md) for the full breakdown.
 
 ## Status
 
-Wastime is live on Google Play and in active development. This repository contains documentation
-only and is updated as the product changes.
+Wastime is live on the App Store and Google Play, launched on
+[Product Hunt](https://www.producthunt.com/products/wastime) on October 28, 2026, and in active
+development. This repository contains documentation only and is updated as the product changes.
 
 ## Contact
 
 Questions, ideas and press requests go through the [contact page](https://wastime.app/contact).
 Logos and product images are in the [press kit](https://wastime.app/marketing).
+
+Wastime is also on [Instagram](https://www.instagram.com/wastime.app/),
+[TikTok](https://www.tiktok.com/@wastime.app) and
+[LinkedIn](https://www.linkedin.com/company/wastime); the author writes about building it on
+[X](https://x.com/VladiMakarevich).
 
 ---
 
