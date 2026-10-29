@@ -33,8 +33,7 @@ The app turns that vague feeling into a record and leaves the conclusions to you
 personal stays on your phone and works offline, with no account and no ads.
 
 > **About this repository.** This is the public overview of the Wastime project. It describes
-> the product, its architecture and the technology behind it. The application source code lives
-> in separate private repositories.
+> the product, its architecture and the technology behind it.
 
 ---
 
